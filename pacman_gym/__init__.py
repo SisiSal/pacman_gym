@@ -1,4 +1,4 @@
-from gym.envs.registration import register
+from gymnasium.envs.registration import register
 from pacman_gym.envs.pacmanInterface import sample_layout
 
 register(

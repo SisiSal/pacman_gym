@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: pacman_gym
+Version: 0.0.1
+License-File: LICENSE
+Requires-Dist: gymnasium==1.2.3
+Requires-Dist: networkx
+Dynamic: license-file
+Dynamic: requires-dist

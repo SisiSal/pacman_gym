@@ -1,4 +1,4 @@
-import gym
+import gymnasium as gym
 from .warehouse.warehouse import readCommand, ClassicGameRules
 
 class WarehouseEnv(gym.Env):

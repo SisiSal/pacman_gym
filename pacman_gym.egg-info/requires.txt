@@ -1,0 +1,2 @@
+gymnasium==1.2.3
+networkx

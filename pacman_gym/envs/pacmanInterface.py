@@ -1,8 +1,8 @@
 """
 """
 
-import gym
-from gym.spaces import Box, Discrete, Dict
+import gymnasium as gym
+from gymnasium.spaces import Box, Discrete, Dict
 
 from .pacman.pacman import readCommand, ClassicGameRules
 import numpy as np
