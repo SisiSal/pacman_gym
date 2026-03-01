@@ -1088,47 +1088,55 @@ class Game:
     def compose_img(self, mode):
         if mode == "tinygrid":
             return self._render_tinygrid()
-
-        x, y = self.state.data.agentStates[0].getPosition()
-        max_width_or_height = self.state.data.layout.height - 1
-        agent_pos = (max_width_or_height - y, x)
-
-        # Food position
-        self.food_pos = []
-        food_tensor = np.array(self.state.data.food.data)
-        max_width_or_height = food_tensor.shape[0] - 1
-        xs, ys = food_tensor.nonzero() # Assuming there is only one food
-        for x, y in zip(xs, ys):
-            self.food_pos.append((int(max_width_or_height - y), int(x)))
-
-        # Fire positions
-        self.fire_pos = []
-        for agent in self.state.data.agentStates[1:]:
-            x, y = agent.configuration.pos
-            self.fire_pos.append((max_width_or_height - y, x))
-
-
-        canvas = self.background.copy()
-        for r, c in self.food_pos:
-            canvas[16 + r * 30:16 + (r + 1) * 30,
-            16 + c * 30:16 + (c + 1) * 30, :] = self.star
-
-        for r, c in self.fire_pos:
-            r, c = int(r), int(c)
-            canvas[16 + r * 30:16 + (r + 1) * 30, 16 + c * 30:16 + (c + 1) * 30, :] = self.fire
-
-        canvas[16 + agent_pos[0] * 30:16 + (agent_pos[0] + 1) * 30, 16 + agent_pos[1] * 30:16 + (agent_pos[1] + 1) * 30, :] = self.agent
+        
+        self.display.update(self.state.data)
+        canvas = self.display.get_image()   # RGB array
 
         if mode == "human":
-            self.display.update(self.state.data)
             return canvas
-        elif mode == "gray":
-            gray = self.rgb2gray(canvas)
-            return gray
-        elif mode == "dict":
-            gray = self.rgb2gray(canvas)
-            return gray
+        elif mode in ("gray", "dict"):
+            return self.rgb2gray(canvas)
         elif mode == "state_pixels":
+        # x, y = self.state.data.agentStates[0].getPosition()
+        # max_width_or_height = self.state.data.layout.height - 1
+        # agent_pos = (max_width_or_height - y, x)
+
+        # # Food position
+        # self.food_pos = []
+        # food_tensor = np.array(self.state.data.food.data)
+        # max_width_or_height = food_tensor.shape[0] - 1
+        # xs, ys = food_tensor.nonzero() # Assuming there is only one food
+        # for x, y in zip(xs, ys):
+        #     self.food_pos.append((int(max_width_or_height - y), int(x)))
+
+        # # Fire positions
+        # self.fire_pos = []
+        # for agent in self.state.data.agentStates[1:]:
+        #     x, y = agent.configuration.pos
+        #     self.fire_pos.append((max_width_or_height - y, x))
+
+
+        # canvas = self.background.copy()
+        # for r, c in self.food_pos:
+        #     canvas[16 + r * 30:16 + (r + 1) * 30,
+        #     16 + c * 30:16 + (c + 1) * 30, :] = self.star
+
+        # for r, c in self.fire_pos:
+        #     r, c = int(r), int(c)
+        #     canvas[16 + r * 30:16 + (r + 1) * 30, 16 + c * 30:16 + (c + 1) * 30, :] = self.fire
+
+        # canvas[16 + agent_pos[0] * 30:16 + (agent_pos[0] + 1) * 30, 16 + agent_pos[1] * 30:16 + (agent_pos[1] + 1) * 30, :] = self.agent
+
+        # if mode == "human":
+        #     self.display.update(self.state.data)
+        #     return canvas
+        # elif mode == "gray":
+        #     gray = self.rgb2gray(canvas)
+        #     return gray
+        # elif mode == "dict":
+        #     gray = self.rgb2gray(canvas)
+        #     return gray
+        # elif mode == "state_pixels":
             return canvas
 
 

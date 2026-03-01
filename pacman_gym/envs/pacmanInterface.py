@@ -4,174 +4,85 @@
 import gymnasium as gym
 from gymnasium.spaces import Box, Discrete, Dict
 
-from .pacman.pacman import readCommand, ClassicGameRules
+from .pacman.pacman import build_gym_args, ClassicGameRules
 import numpy as np
-from .pacman.layout import Layout
+from .pacman.layout import Layout as Layout_mod
 import random as rd
 import networkx as nx
 import random
 import math
 from skimage.measure import block_reduce
 
-
-def sample_layout(width, height, num_agents, num_food, non_wall_positions, wall_positions, all_edges, check_valid=True):
-    if check_valid:
-        layout_text = sample_l(width, height, num_agents, num_food, non_wall_positions, wall_positions, all_edges)
-    else:
-        positions = rd.sample(non_wall_positions, num_agents + num_food)
-        pacman_position = positions[0]
-        ghost_positions = positions[1:num_agents]
-        food_positions = positions[num_agents:]
-        layout_text = generate_layout_text(width, height, pacman_position, ghost_positions, food_positions, wall_positions)
-    new_layout = Layout(layout_text.split('\n'))
-    return new_layout
-
-def sample_l(width, height, num_agents, num_food, non_wall_positions, wall_positions, all_edges):
-    layout = None
-    pacman_position = None
-    ghost_positions = None
-    food_positions = None
-    while not valid(layout, width, height, pacman_position, food_positions, ghost_positions, non_wall_positions, wall_positions, all_edges):
-        positions = rd.sample(non_wall_positions, num_agents + num_food)
-        pacman_position = positions[0]
-        ghost_positions = positions[1:num_agents]
-        food_positions = positions[num_agents:]
-        layout = generate_layout_text(width, height, pacman_position, ghost_positions, food_positions, wall_positions)
-
-    return layout
-
-
-def valid(layout, width, height, pacman_position, food_positions, ghost_positions, non_wall_positions, wall_positions, all_edges):
-    if layout is None:
-        return False
-    valid_postions = [l for l in non_wall_positions if l not in ghost_positions]
-    g = nx.Graph()
-    g.add_nodes_from(valid_postions)
-
-    for n1, n2 in all_edges:
-        if n1 in valid_postions and n2 in valid_postions:
-            g.add_edge(n1, n2)
-
-    for food_position in food_positions:
-        if not nx.has_path(g, pacman_position, food_position):
-            print("not valid")
-            return False
-    return True
-
-
-def generate_layout_text(width, height, pacman_position, ghost_positions, food_positions, wall_positions):
-    layout = []
-    for r in range(height):
-        row = ''
-        for c in range(width):
-            if (r,c) in wall_positions:
-                row += '%'
-            elif (r,c) == pacman_position:
-                row += 'P'
-            elif (r, c) in ghost_positions:
-                row += 'G'
-            elif (r, c) in food_positions:
-                row += '.'
-            else:
-                row += ' '
-        layout.append(row)
-    return '\n'.join(layout)
-
 class PacmanEnv(gym.Env):
     metadata = {"render.modes": ["human", "tinygrid", "gray", "dict", "state_pixels"]}
 
     def __init__(
-            self, seed, render_or_not, render_mode, move_ghosts=False, stochasticity=0.0
-    ):
+            self, seed, render_or_not, render_mode, move_ghosts=True, stochasticity=0.0,
+            train_layouts=None, test_layouts=None, split="train", fixed_map=None, num_ghosts=2, max_steps=200
+            ):
         """"""
-        layout = "small4"
-        reward_goal = 10
-        reward_crash = 0
-        reward_food = 1
-        reward_time = -0.1
-        downsampling_size = 8
-        height, width = 482, 482
-        num_maps = 1
-        max_steps = 200
+        self._seed = seed
+        self.np_random = np.random.default_rng(self._seed)
+
         self.beQuiet = not render_or_not
         self.render_or_not = render_or_not
-
-        input_args = [
-            "--layout",
-            layout,
-            "--reward-goal",
-            str(reward_goal),
-            "--reward-crash",
-            str(reward_crash),
-            "--reward-food",
-            str(reward_food),
-            "--reward-time",
-            str(reward_time)
-        ]
-
         self.render_mode = render_mode
-        if self.beQuiet:
-            input_args.append("--quietTextGraphics")
 
-        args = readCommand(input_args)
+        self.reward_goal = 10
+        self.reward_crash = 0
+        self.reward_food = 1
+        self.reward_time = -0.1
 
-        # set OpenAI gym variables
-        self._seed = seed
-        self.A = ["Stop", "North", "South", "West", "East"]
-        self.steps = 0
-        self.history = []
-
-        # port input values to fields
-        self.layout = args["layout"]
-        self.pacman = args["pacman"]
-        self.ghosts = args["ghosts"]
-        self.display = args["display"]
-        self.numGames = args["numGames"]
-        self.record = args["record"]
-        self.numTraining = args["numTraining"]
-        self.numGhostTraining = args["numGhostTraining"]
-        self.withoutShield = args["withoutShield"]
-        self.catchExceptions = args["catchExceptions"]
-        self.timeout = args["timeout"]
-        self.symX = args["symX"]
-        self.symY = args["symY"]
-
-
-        self.reward_goal = args["reward_goal"]
-        self.reward_crash = args["reward_crash"]
-        self.reward_food = args["reward_food"]
-        self.reward_time = args["reward_time"]
         self.max_steps = max_steps
-        self.num_maps = num_maps
-
-        layout_backgrounds = {
-            "small4": "bg_small.jpg"
-        }
-        self.background_filename = layout_backgrounds[layout]
+        self.steps = 0
+        self.history = []    
 
         self.move_ghosts = move_ghosts
         self.stochasticity = stochasticity
+        self.num_ghosts = num_ghosts
 
+        # Map pools
+        self.train_layouts = train_layouts or ["train_regular_01"]
+        self.test_layouts = test_layouts or ["test_01_easy"]
+        self.split = split
+        self.fixed_map = fixed_map
 
-        self.rules = ClassicGameRules(
-            args["timeout"],
-            self.reward_goal,
-            self.reward_crash,
-            self.reward_food,
-            self.reward_time,
-        )
-        self.height, self.width, self.downsampling_size = height, width, downsampling_size
+        # Build the cyclic schedule (names)
+        if self.fixed_map is not None:
+            self.layout_cycle = [self.fixed_map]
+        else:
+            self.layout_cycle = self.train_layouts if self.split == "train" else self.test_layouts
 
-        ######
+        if len(self.layout_cycle) == 0:
+            raise ValueError("No layouts provided for the selected split.")
+
+        missing = [name for name in self.layout_cycle if Layout_mod.getLayout(name) is None]
+        if missing:
+            raise ValueError(
+                "These layouts were not found in the layouts folder: "
+                + ", ".join(missing)
+            )
+
+        self._layout_idx = 0
+
+        self.background_filename = "background.jpg"
 
         self.grid_size = 1
-        self.grid_height = self.layout.height
-        self.grid_weight = self.layout.width
+        self.grid_height = 11
+        self.grid_width = 19
         self.color_channels = 1
 
-        import __main__
+        self.height, self.width = 482, 482
+        self.downsampling_size = 8
 
-        __main__.__dict__["_display"] = self.display
+        self.observation_space = Box(low=0, high=1, shape=(self.grid_height, self.grid_width), dtype=np.float32)
+
+        self.A = ["Stop", "North", "South", "West", "East"]
+        self.action_space = Discrete(5) # default datatype is np.int64
+        self.action_size = 5
+        
+        self.reward_range = (0, 10)
+
         if self.render_mode == "tinygrid":
             self.observation_space = Box(
                 low=0,
@@ -218,20 +129,6 @@ class PacmanEnv(gym.Env):
                 )
             )
 
-        self.action_space = Discrete(5) # default datatype is np.int64
-        self.action_size = 5
-        self.np_random = rd.seed(self._seed)
-        self.reward_range = (0, 10)
-        self.maps = [self.layout]
-
-
-        self.num_agents, self.num_food, self.non_wall_positions, self.wall_positions, self.all_edges = self.sample_prep(
-            self.layout)
-
-
-
-    def select_room(self):
-        return random.choice(self.maps)
 
     def step(self, action, observation_mode="human"):
         """
@@ -305,31 +202,73 @@ class PacmanEnv(gym.Env):
         # return self.game.state, reward, self.game.gameOver, dict()
         return self.render(self.render_mode), reward, done, info
 
-    def reset(self, observation_mode="human"):
-        if self.beQuiet:
-            # Suppress output and graphics
-            from .pacman import textDisplay
+    def reset(self, seed=None, options=None):
+        super().reset(seed=seed)
 
-            self.gameDisplay = textDisplay.NullGraphics()
-            self.rules.quiet = True
-        else:
-            self.gameDisplay = self.display
-            self.rules.quiet = False
+        self.steps = 0
+        layout_name = self.layout_cycle[self._layout_idx]
+        self._layout_idx = (self._layout_idx + 1) % len(self.layout_cycle)
 
-        sampled_layout = self.select_room()
+        args = build_gym_args(
+            layout_name=layout_name,
+            num_ghosts=self.num_ghosts,
+            be_quiet=self.beQuiet,
+            zoom=1.0,
+            frame_time=0.1,
+            timeout=30,
+            reward_goal=self.reward_goal,
+            reward_crash=self.reward_crash,
+            reward_food=self.reward_food,
+            reward_time=self.reward_time,
+        )
+
+        # Pull objects from args
+        self.layout = args["layout"]
+        self.pacman = args["pacman"]
+        self.ghosts = args["ghosts"]
+        self.display = args["display"]
+        self.numGames = args["numGames"]
+        self.record = args["record"]
+        self.numTraining = args["numTraining"]
+        self.numGhostTraining = args["numGhostTraining"]
+        self.withoutShield = args["withoutShield"]
+        self.catchExceptions = args["catchExceptions"]
+        self.timeout = args["timeout"]
+        self.symX = args["symX"]
+        self.symY = args["symY"]
+
+        # rules object (your code already creates this)
+        self.rules = ClassicGameRules(
+            self.timeout,
+            self.reward_goal,
+            self.reward_crash,
+            self.reward_food,
+            self.reward_time,
+        )
+
         self.game = self.rules.newGame(
-            sampled_layout,
+            self.layout,
             self.pacman,
             self.ghosts,
-            self.gameDisplay,
-            self.beQuiet,
-            self.catchExceptions,
-            self.symX,
-            self.symY,
-            self.background_filename
+            quiet=self.beQuiet,
+            catchExceptions=False,
+            symX=False,
+            symY=False,
+            background_filename=self.background_filename
         )
+        
         self.game.start_game()
-        return self.render(self.render_mode)
+        
+        self.grid_height = self.layout.height
+        self.grid_weight = self.layout.width
+
+        obs = self.get_obs()
+        info = {"layout_name": layout_name}
+
+        self.num_agents, self.num_food, self.non_wall_positions, self.wall_positions, self.all_edges = self.sample_prep(
+            self.layout)
+
+        return obs, info
 
     def downsampling(self, x):
         dz = block_reduce(x, block_size=(self.downsampling_size, self.downsampling_size), func=np.mean)
