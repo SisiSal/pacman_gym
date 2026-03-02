@@ -24,19 +24,23 @@ class PacmanEnv(gym.Env):
         self._seed = seed
         self.np_random = np.random.default_rng(self._seed)
 
+        # Rendering options
         self.beQuiet = not render_or_not
         self.render_or_not = render_or_not
         self.render_mode = render_mode
 
+        # Rewards
         self.reward_goal = 10
         self.reward_crash = 0
         self.reward_food = 1
         self.reward_time = -0.1
 
+        # Episode management
         self.max_steps = max_steps
         self.steps = 0
         self.history = []    
 
+        # Additional options
         self.move_ghosts = move_ghosts
         self.stochasticity = stochasticity
         self.num_ghosts = num_ghosts
@@ -53,9 +57,11 @@ class PacmanEnv(gym.Env):
         else:
             self.layout_cycle = self.train_layouts if self.split == "train" else self.test_layouts
 
+        # Ensure layouts exist and are provided
         if len(self.layout_cycle) == 0:
             raise ValueError("No layouts provided for the selected split.")
 
+        # Check that all layouts in the cycle exist
         missing = [name for name in self.layout_cycle if getLayout(name) is None]
         if missing:
             raise ValueError(
@@ -63,11 +69,14 @@ class PacmanEnv(gym.Env):
                 + ", ".join(missing)
             )
 
+        # Start with the first layout in the cycle
         self._layout_idx = 0
 
+        # Set the background image
         self.background_filename = "background.jpeg"
 
         self.grid_size = 1
+        # Fix the observation space
         self.grid_height = 11
         self.grid_width = 19
         self.color_channels = 1
@@ -75,14 +84,17 @@ class PacmanEnv(gym.Env):
         self.height, self.width = 482, 482
         self.downsampling_size = 8
 
+        # Default observation space (can be overridden by specific render modes)
         self.observation_space = Box(low=0, high=1, shape=(self.grid_height, self.grid_width), dtype=np.float32)
 
+        # Action space: 0=Stop, 1=North, 2=South, 3=West, 4=East
         self.A = ["Stop", "North", "South", "West", "East"]
         self.action_space = Discrete(5) # default datatype is np.int64
         self.action_size = 5
         
         self.reward_range = (0, 10)
 
+        # Set the observation space based on the rendering mode
         if self.render_mode == "tinygrid":
             self.observation_space = Box(
                 low=0,
@@ -159,6 +171,7 @@ class PacmanEnv(gym.Env):
         """
         agentIndex = 0
 
+        # Apply stochasticity to the action
         rdm = random.random()
         if rdm >= 2*self.stochasticity:
             action = [0, 1, 2, 3, 4][action]
@@ -189,17 +202,20 @@ class PacmanEnv(gym.Env):
                     state = self.game.get_observation(agentIndex)
                     action = self.game.calculate_action(agentIndex, state)
                     self.game.take_action(agentIndex, action)
-                    
+                    # Adjusted rendering
                     if self.render_or_not and self.render_mode == "human":
                         self.render("human")
                         
                     reward += self.game.state.data.scoreChange
                     if self.game.gameOver:
                         break
-
+        
+        # Check for termination and truncation
         terminated = self.game.gameOver 
         truncated = self._check_if_maxsteps()
 
+        # Info can include whether max steps were used and whether the episode ended in 
+        # success (win) or failure (lose)
         info = {}
         if terminated or truncated:
             info["maxsteps_used"] = truncated
@@ -213,10 +229,12 @@ class PacmanEnv(gym.Env):
     def reset(self, observation_mode="human", seed=None, options=None):
         super().reset(seed=seed)
 
+        # Reset the environment to the next layout in the cycle
         self.steps = 0
         layout_name = self.layout_cycle[self._layout_idx]
         self._layout_idx = (self._layout_idx + 1) % len(self.layout_cycle)
 
+        # Build the game using the selected layout and parameters
         args = build_gym_args(
             layout_name=layout_name,
             num_ghosts=self.num_ghosts,
@@ -245,7 +263,7 @@ class PacmanEnv(gym.Env):
         self.symX = args["symX"]
         self.symY = args["symY"]
 
-        # rules object
+        # Rules and game setup
         self.rules = ClassicGameRules(
             self.timeout,
             self.reward_goal,
@@ -264,6 +282,7 @@ class PacmanEnv(gym.Env):
             self.gameDisplay = self.display
             self.rules.quiet = False
 
+        # Create the game instance
         self.game = self.rules.newGame(
             self.layout,
             self.pacman,

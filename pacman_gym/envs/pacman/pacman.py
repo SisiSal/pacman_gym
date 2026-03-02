@@ -30,7 +30,7 @@ code to run a game.  This file is divided into three sections:
           things collide, etc.  You shouldn't need to read this section
           of code, but you can if you want.
 
-  (iii) Framework to start a game (removed):
+  (iii) Framework to start a game (REPLACED):
           The final section contains the code for reading the command
           you use to set up the game, then starting up a new game, along with
           linking in all the external parts (agent functions, graphics).
@@ -513,12 +513,14 @@ class GhostRules:
 #          Code to replace the framework        #
 #################################################
 
+# This section contains code to replace the framework code in pacman.py that starts a game.  
+# This is used by the gym interface to start a game with the correct parameters and layout.
 class GymPacmanAgent:
     def __init__(self):
         self.last_action = "Stop"
 
     def doAction(self, state, action):
-        # called by your env.step
+        # called by env.step
         self.last_action = action
 
     def getAction(self, state):
@@ -540,6 +542,7 @@ def build_gym_args(
 ):
     args = {}
 
+    # Load the layout
     args["layout"] = layout.getLayout(layout_name)
     if args["layout"] is None:
         raise ValueError(f"Layout {layout_name} not found")
@@ -554,6 +557,7 @@ def build_gym_args(
     else:
         args["display"] = graphicsDisplay.PacmanGraphics(zoom, frameTime=frame_time)
 
+    # args for rules and game setup
     args["timeout"] = timeout
     args["reward_goal"] = reward_goal
     args["reward_crash"] = reward_crash
