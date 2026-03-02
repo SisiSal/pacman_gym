@@ -391,11 +391,20 @@ def writePostscript(filename):
 #     im.save(imagepath)
 
 def get_rgb_array(colormode='color'):
-    ps = _canvas.postscript(colormode=colormode)
-    im = Image.open(io.BytesIO(ps.encode('utf-8')))
-    im = np.array(im)
-    im = im[1:274,1:241, :]
-    return im
+    # Make sure the canvas has drawn the latest frame
+    _root_window.update_idletasks()
+    _root_window.update()
+
+    # Canvas bounding box in screen coordinates
+    x0 = _canvas.winfo_rootx()
+    y0 = _canvas.winfo_rooty()
+    x1 = x0 + _canvas.winfo_width()
+    y1 = y0 + _canvas.winfo_height()
+
+    im = ImageGrab.grab(bbox=(x0, y0, x1, y1))  # PIL Image (RGB)
+    arr = np.array(im)
+
+    return arr
 
 ##### Get RGB from canvas. Source :https://stackoverflow.com/questions/28014347/get-pixel-colors-of-tkinter-canvas #####
 # def get_rgb_array():

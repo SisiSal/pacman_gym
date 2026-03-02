@@ -1,5 +1,5 @@
 Metadata-Version: 2.4
-Name: pacman_gym
+Name: pacman_gym_env
 Version: 0.0.1
 License-File: LICENSE
 Requires-Dist: gymnasium==1.2.3

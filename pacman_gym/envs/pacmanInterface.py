@@ -6,7 +6,7 @@ from gymnasium.spaces import Box, Discrete, Dict
 
 from .pacman.pacman import build_gym_args, ClassicGameRules
 import numpy as np
-from .pacman.layout import Layout as Layout_mod
+from .pacman.layout import Layout, getLayout
 import random as rd
 import networkx as nx
 import random
@@ -18,7 +18,7 @@ class PacmanEnv(gym.Env):
 
     def __init__(
             self, seed, render_or_not, render_mode, move_ghosts=True, stochasticity=0.0,
-            train_layouts=None, test_layouts=None, split="train", fixed_map=None, num_ghosts=2, max_steps=200
+            train_layouts=None, test_layouts=None, split="train", fixed_map=None, num_ghosts=3, max_steps=200
             ):
         """"""
         self._seed = seed
@@ -56,7 +56,7 @@ class PacmanEnv(gym.Env):
         if len(self.layout_cycle) == 0:
             raise ValueError("No layouts provided for the selected split.")
 
-        missing = [name for name in self.layout_cycle if Layout_mod.getLayout(name) is None]
+        missing = [name for name in self.layout_cycle if getLayout(name) is None]
         if missing:
             raise ValueError(
                 "These layouts were not found in the layouts folder: "
@@ -65,7 +65,7 @@ class PacmanEnv(gym.Env):
 
         self._layout_idx = 0
 
-        self.background_filename = "background.jpg"
+        self.background_filename = "background.jpeg"
 
         self.grid_size = 1
         self.grid_height = 11
@@ -89,7 +89,7 @@ class PacmanEnv(gym.Env):
                 high=1,
                 shape=(
                     self.grid_height * self.grid_size,
-                    self.grid_weight * self.grid_size
+                    self.grid_width * self.grid_size
                 )
             )
         elif self.render_mode == "gray":
@@ -115,7 +115,7 @@ class PacmanEnv(gym.Env):
                     high=1,
                     shape=(
                         self.grid_height * self.grid_size,
-                        self.grid_weight * self.grid_size
+                        self.grid_width * self.grid_size
                     )
                 )
             })
@@ -147,7 +147,7 @@ class PacmanEnv(gym.Env):
                 your total reward.
             episode_over (bool) :
                 whether it's time to reset the environment again. Most (but not
-                all) tasks are divided up into well-defined episodes, and done
+                all) tasks are divided up into well-defined episodes, and terminated
                 being True indicates the episode has terminated. (For example,
                 perhaps the pole tipped too far, or you lost your last life.)
             info (dict) :
@@ -176,7 +176,10 @@ class PacmanEnv(gym.Env):
         # perform "doAction" for the pacman
         self.game.agents[agentIndex].doAction(self.game.state, action)
         self.game.take_action(agentIndex, action)
-        self.render()
+
+        if self.render_or_not and self.render_mode == "human":
+            self.render("human")
+        
         reward = self.game.state.data.scoreChange
 
         # move the ghosts
@@ -186,23 +189,28 @@ class PacmanEnv(gym.Env):
                     state = self.game.get_observation(agentIndex)
                     action = self.game.calculate_action(agentIndex, state)
                     self.game.take_action(agentIndex, action)
-                    self.render()
+                    
+                    if self.render_or_not and self.render_mode == "human":
+                        self.render("human")
+                        
                     reward += self.game.state.data.scoreChange
                     if self.game.gameOver:
                         break
 
-        done = self.game.gameOver or self._check_if_maxsteps()
+        terminated = self.game.gameOver 
+        truncated = self._check_if_maxsteps()
 
-
-        info = dict()
-        if done:
-            info["maxsteps_used"] = self._check_if_maxsteps()
+        info = {}
+        if terminated or truncated:
+            info["maxsteps_used"] = truncated
             info["is_success"] = self.game.state.isWin()
 
-        # return self.game.state, reward, self.game.gameOver, dict()
-        return self.render(self.render_mode), reward, done, info
+        observation = self.render(self.render_mode)
 
-    def reset(self, seed=None, options=None):
+        # return self.game.state, reward, self.game.gameOver, dict()
+        return observation, reward, terminated, truncated, info
+
+    def reset(self, observation_mode="human", seed=None, options=None):
         super().reset(seed=seed)
 
         self.steps = 0
@@ -237,7 +245,7 @@ class PacmanEnv(gym.Env):
         self.symX = args["symX"]
         self.symY = args["symY"]
 
-        # rules object (your code already creates this)
+        # rules object
         self.rules = ClassicGameRules(
             self.timeout,
             self.reward_goal,
@@ -246,29 +254,41 @@ class PacmanEnv(gym.Env):
             self.reward_time,
         )
 
+        if self.beQuiet:
+            # Suppress output and graphics
+            from .pacman import textDisplay
+
+            self.gameDisplay = textDisplay.NullGraphics()
+            self.rules.quiet = True
+        else:
+            self.gameDisplay = self.display
+            self.rules.quiet = False
+
         self.game = self.rules.newGame(
             self.layout,
             self.pacman,
             self.ghosts,
-            quiet=self.beQuiet,
-            catchExceptions=False,
-            symX=False,
-            symY=False,
-            background_filename=self.background_filename
+            self.gameDisplay,
+            self.beQuiet,
+            self.catchExceptions,
+            self.symX,
+            self.symY,
+            self.background_filename
         )
         
         self.game.start_game()
-        
-        self.grid_height = self.layout.height
-        self.grid_weight = self.layout.width
-
-        obs = self.get_obs()
-        info = {"layout_name": layout_name}
 
         self.num_agents, self.num_food, self.non_wall_positions, self.wall_positions, self.all_edges = self.sample_prep(
             self.layout)
+        
+        mode = self.render_mode
+        if self.beQuiet and mode in ("gray", "state_pixels", "dict"):
+            mode = "tinygrid"
 
-        return obs, info
+        observation = self.render(mode)
+        info = {"layout_name": layout_name}
+
+        return observation, info
 
     def downsampling(self, x):
         dz = block_reduce(x, block_size=(self.downsampling_size, self.downsampling_size), func=np.mean)
