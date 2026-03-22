@@ -4,7 +4,7 @@ from pacman_gym.envs.pacmanInterface import PacmanEnv
 train_maps = ["easy_01", "easy_02", "easy_01", "easy_02", 
               "medium_03", "medium_04", "medium_05", "medium_06",
               "train_hard_01", "train_hard_02", "train_hard_03", "train_hard_04", "train_hard_05", "train_hard_06"]
-test_maps  = ["medium_06"]
+test_maps  = []
 
 #testing the human rendering mode
 env_train = PacmanEnv(seed=0, render_or_not=True, render_mode="human",
