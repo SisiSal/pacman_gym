@@ -305,7 +305,7 @@ class PacmanEnv(gym.Env):
             mode = "tinygrid"
 
         observation = self.render(mode)
-        info = {"layout_name": layout_name}
+        info = {"layout_name": layout_name, "num_food": self.num_food}
 
         return observation, info
 
