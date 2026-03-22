@@ -1,56 +1,57 @@
 import gymnasium as gym
 from pacman_gym.envs.pacmanInterface import PacmanEnv
 
-train_maps = ["easy_01", "easy_02", "easy_01", "easy_02", 
+train_maps = ["easy_01", "easy_02", "medium_01", "medium_02", 
               "medium_03", "medium_04", "medium_05", "medium_06",
-              "train_hard_01", "train_hard_02", "train_hard_03", "train_hard_04", "train_hard_05", "train_hard_06"]
+              "hard_01", "hard_02", "hard_03", "hard_04", "hard_05", "hard_06"]
 test_maps  = []
 
 #testing the human rendering mode
 env_train = PacmanEnv(seed=0, render_or_not=True, render_mode="human",
-                      train_layouts=train_maps, test_layouts=test_maps, split="test", max_steps=1000)
+                      train_layouts=train_maps, test_layouts=test_maps, split="train", max_steps=200)
 
 
 obs, info = env_train.reset()
+print("RESET INFO:", info)
 
-total_reward = 0
 done = False
 
 while not done:
     a = env_train.action_space.sample()
     obs, reward, terminated, truncated, info = env_train.step(a)
-    total_reward += reward
     done = terminated or truncated
 
+    if done:
+        print("\nEPISODE FINISHED")
+        print("INFO:", info)
+
 # normalize reward after episode ends
-num_food = info["num_food"]
-normalized_reward = total_reward / num_food  # example normalization
 env_train.close()
 
 
-# #testing the tinygrid rendering mode
-# env_train = PacmanEnv(seed=0, render_or_not=False, render_mode="tinygrid",
-#                       train_layouts=train_maps, test_layouts=test_maps, split="train")
+#######################################################
+# testing the tinygrid rendering mode
+env_train = PacmanEnv(seed=0, render_or_not=False, render_mode="tinygrid",
+                      train_layouts=train_maps, test_layouts=test_maps, split="train", max_steps=10)
 
-# obs, info = env_train.reset()
-# done = False
-# t = 0
-# while not done:
-#     print(f"\nStep {t}")
-#     print(obs)  # shows tinygrid observation (whatever type it is: array/list/string)
-#     a = env_train.action_space.sample()
-#     obs, reward, terminated, truncated, info = env_train.step(a)
-#     done = terminated or truncated
-#     t += 1
+obs, info = env_train.reset()
+done = False
+t = 0
+while not done:
+    print(f"\nStep {t}")
+    print(obs)
+    print(set(obs.flatten()))
+    a = env_train.action_space.sample()
+    obs, reward, terminated, truncated, info = env_train.step(a)
+    done = terminated or truncated
+    t += 1
 
-# env_train.close()
-
-# from PIL import Image
-# img = Image.open("pacman_gym/envs/pacman/imgs/agent.png")
-# print(img.size)
+env_train.close()
 
 
-#####testing human rendering mode with keyboard input
+
+#######################################################
+# testing human rendering mode with keyboard input
 key_to_action = {
     "w": 1,  # North
     "s": 2,  # South

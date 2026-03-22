@@ -32,7 +32,9 @@ import numpy as np
 # grey scale
 WALL_COLOR = 0.25
 GHOST_COLOR = 0.5
+SCARED_GHOST_COLOR = 0.6
 PACMAN_COLOR = 0.75
+CAPSULE_COLOR = 0.9
 FOOD_COLOR = 1
 
 
@@ -1064,13 +1066,21 @@ class Game:
                 if newState.layout.walls[w][h]:
                     image[w * grid_size:(w + 1) * grid_size, h * grid_size:(h + 1) * grid_size] = WALL_COLOR
 
+        # draw capsules
+        for (x, y) in newState.capsules:
+            image[x*grid_size:(x+1)*grid_size, y*grid_size:(y+1)*grid_size] = CAPSULE_COLOR
+
         # draw fires
         for agentIndex, agentState in enumerate(newState.agentStates):
             agent_x = int(agentState.configuration.pos[0])
             agent_y = int(agentState.configuration.pos[1])
             if agentIndex != 0:
-                image[agent_x * grid_size:(agent_x + 1) * grid_size,
-                agent_y * grid_size:(agent_y + 1) * grid_size] = GHOST_COLOR
+                if agentState.scaredTimer > 0:
+                    image[agent_x * grid_size:(agent_x + 1) * grid_size,
+                    agent_y * grid_size:(agent_y + 1) * grid_size] = SCARED_GHOST_COLOR
+                else:
+                    image[agent_x * grid_size:(agent_x + 1) * grid_size,
+                    agent_y * grid_size:(agent_y + 1) * grid_size] = GHOST_COLOR
 
         # draw the learning agent
         agentState = newState.agentStates[0]

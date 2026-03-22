@@ -14,7 +14,7 @@ import math
 from skimage.measure import block_reduce
 
 class PacmanEnv(gym.Env):
-    metadata = {"render.modes": ["human", "tinygrid", "gray", "dict", "state_pixels"]}
+    metadata = {"render_modes": ["human", "tinygrid", "gray", "dict", "state_pixels"]}
 
     def __init__(
             self, seed, render_or_not, render_mode, move_ghosts=True, stochasticity=0.0,
@@ -31,7 +31,7 @@ class PacmanEnv(gym.Env):
 
         # Rewards
         self.reward_goal = 10
-        self.reward_crash = 0
+        self.reward_crash = -10
         self.reward_food = 1
         self.reward_time = -0.1
 
@@ -46,8 +46,8 @@ class PacmanEnv(gym.Env):
         self.num_ghosts = num_ghosts
 
         # Map pools
-        self.train_layouts = train_layouts or ["train_regular_01"]
-        self.test_layouts = test_layouts or ["test_01_easy"]
+        self.train_layouts = train_layouts or ["medium_01"]
+        self.test_layouts = test_layouts or ["easy_01"]
         self.split = split
         self.fixed_map = fixed_map
 
@@ -100,9 +100,11 @@ class PacmanEnv(gym.Env):
                 low=0,
                 high=1,
                 shape=(
+                    1,
                     self.grid_height * self.grid_size,
-                    self.grid_width * self.grid_size
-                )
+                    self.grid_width * self.grid_size,
+                    ),
+                dtype=np.float32,
             )
         elif self.render_mode == "gray":
             reduced_dim = math.ceil(self.height / self.downsampling_size)
@@ -121,14 +123,17 @@ class PacmanEnv(gym.Env):
                     high=1,
                     shape=(
                         reduced_dim, reduced_dim
-                    )),
+                    ),
+                    dtype=np.float32
+                    ),
                 "tinygrid": Box(
                     low=0,
                     high=1,
                     shape=(
                         self.grid_height * self.grid_size,
                         self.grid_width * self.grid_size
-                    )
+                    ),
+                    dtype=np.float32
                 )
             })
         elif self.render_mode == "state_pixels": # TODO
@@ -220,7 +225,12 @@ class PacmanEnv(gym.Env):
         if terminated or truncated:
             info["maxsteps_used"] = truncated
             info["is_success"] = self.game.state.isWin()
-
+            info["final_score"] = self.game.state.data.score
+            info["layout_name"] = self.layout_name
+            info["initial_num_food"] = int(self.initial_num_food)
+            info["remaining_food"] = self.game.state.getNumFood()
+            info["percent_food_eaten"] = float((self.initial_num_food - self.game.state.getNumFood())/max(1, self.initial_num_food))
+            info["normalized_score"] = float(self.game.state.data.score / max(1, self.initial_num_food))
         observation = self.render(self.render_mode)
 
         # return self.game.state, reward, self.game.gameOver, dict()
@@ -232,6 +242,7 @@ class PacmanEnv(gym.Env):
         # Reset the environment to the next layout in the cycle
         self.steps = 0
         layout_name = self.layout_cycle[self._layout_idx]
+        self.layout_name = layout_name
         self._layout_idx = (self._layout_idx + 1) % len(self.layout_cycle)
 
         # Build the game using the selected layout and parameters
@@ -299,13 +310,14 @@ class PacmanEnv(gym.Env):
 
         self.num_agents, self.num_food, self.non_wall_positions, self.wall_positions, self.all_edges = self.sample_prep(
             self.layout)
+        self.initial_num_food = self.num_food
         
         mode = self.render_mode
         if self.beQuiet and mode in ("gray", "state_pixels", "dict"):
             mode = "tinygrid"
 
         observation = self.render(mode)
-        info = {"layout_name": layout_name, "num_food": self.num_food}
+        info = {"layout_name": layout_name, "num_food": int(self.num_food)}
 
         return observation, info
 
@@ -321,7 +333,8 @@ class PacmanEnv(gym.Env):
         elif mode == "human":
             return self.game.compose_img(mode)
         elif mode == "tinygrid":
-            return self.game.compose_img(mode="tinygrid")
+            obs = self.game.compose_img(mode="tinygrid").astype(np.float32)
+            return obs[np.newaxis, :, :]
         elif mode == "dict":
             img = self.game.compose_img(mode)  # calls the fast renderer
             return {
