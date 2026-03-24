@@ -14,7 +14,7 @@ import math
 from skimage.measure import block_reduce
 
 class PacmanEnv(gym.Env):
-    metadata = {"render_modes": ["human", "tinygrid", "gray", "dict", "state_pixels"]}
+    metadata = {"render_modes": ["human", "tinygrid", "gray", "dict", "state_pixels", "rgb_array"]}
 
     def __init__(
             self, seed, render_or_not, render_mode, move_ghosts=True, stochasticity=0.0,
@@ -144,6 +144,13 @@ class PacmanEnv(gym.Env):
                 shape=(
                     reduced_dim, reduced_dim
                 )
+            )
+        elif self.render_mode == "rgb_array":
+            self.observation_space = Box(
+                low=0,
+                high=255,
+                shape=(self.height, self.width, 3),
+                dtype=np.uint8
             )
 
 
@@ -313,7 +320,7 @@ class PacmanEnv(gym.Env):
         self.initial_num_food = self.num_food
         
         mode = self.render_mode
-        if self.beQuiet and mode in ("gray", "state_pixels", "dict"):
+        if self.beQuiet and mode in ("gray", "dict"):
             mode = "tinygrid"
 
         observation = self.render(mode)
@@ -332,6 +339,8 @@ class PacmanEnv(gym.Env):
             return self.downsampling(img)
         elif mode == "human":
             return self.game.compose_img(mode)
+        elif mode == "rgb_array":
+            return self.game.compose_img(mode)
         elif mode == "tinygrid":
             obs = self.game.compose_img(mode="tinygrid").astype(np.float32)
             return obs[np.newaxis, :, :]
@@ -341,6 +350,8 @@ class PacmanEnv(gym.Env):
                 "gray" : self.downsampling(img),
                 "tinygrid": self.game.compose_img(mode="tinygrid")
             }
+        else:
+            raise ValueError(f"Unsupported render mode: {mode}")
 
 
 

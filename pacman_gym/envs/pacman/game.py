@@ -1098,6 +1098,8 @@ class Game:
     def compose_img(self, mode):
         if mode == "tinygrid":
             return self._render_tinygrid()
+        if mode == "rgb_array":
+            return self._render_rgb_array()
         
         self.display.update(self.state.data)
         canvas = self.display.get_image()   # RGB array
@@ -1148,6 +1150,8 @@ class Game:
         #     return gray
         # elif mode == "state_pixels":
             return canvas
+        else:
+            raise ValueError(f"Unsupported compose_img mode: {mode}")
 
 
     def render(self, mode):
@@ -1160,6 +1164,95 @@ class Game:
 
     def _render_rgb(self):
         return self.display.get_image()
+    
+    def _render_rgb_array(self):
+        import pygame
+        import numpy as np
+
+        cell_size = 32
+        walls = self.state.getWalls()
+        food = self.state.getFood()
+        capsules = self.state.getCapsules()
+        ghost_states = self.state.getGhostStates()
+
+        width = walls.width
+        height = walls.height
+
+        canvas = pygame.Surface((width * cell_size, height * cell_size))
+        canvas.fill((0, 0, 0))
+
+        def to_screen(x, y):
+            return (
+                int(x * cell_size),
+                int((height - 1 - y) * cell_size),
+            )
+
+        def center(x, y):
+            return (
+                int(x * cell_size + cell_size // 2),
+                int((height - 1 - y) * cell_size + cell_size // 2),
+            )
+
+        # draw walls
+        for x in range(width):
+            for y in range(height):
+                if walls[x][y]:
+                    pygame.draw.rect(
+                        canvas,
+                        (0, 0, 255),
+                        pygame.Rect(
+                            *to_screen(x, y),
+                            cell_size,
+                            cell_size,
+                        ),
+                    )
+
+        # draw food
+        for x in range(width):
+            for y in range(height):
+                if food[x][y]:
+                    pygame.draw.circle(
+                        canvas, 
+                        (255, 255, 255), 
+                        center(x, y), 
+                        cell_size // 8)
+        
+        # draw capsules
+        for (cx, cy) in capsules:
+            pygame.draw.circle(
+                canvas,
+                (255, 0, 255),
+                center(cx, cy),
+                cell_size // 4,
+            )
+
+        # draw pacman
+        px, py = self.state.getPacmanPosition()
+        pygame.draw.circle(
+            canvas, 
+            (255, 255, 0), 
+            center(px, py), 
+            cell_size // 3)
+
+        # draw ghosts
+        for ghost in ghost_states:
+            gx, gy = ghost.getPosition()
+
+            if ghost.scaredTimer > 0:
+                color = (0, 255, 255)   #when scared
+            else:
+                color = (255, 0, 0)     #when active
+
+            pygame.draw.circle(
+                canvas,
+                color,
+                center(gx, gy),
+                cell_size // 3,
+            )
+
+        return np.transpose(
+            np.array(pygame.surfarray.array3d(canvas)), axes=(1, 0, 2)
+        )
 
     def _render_gray(self):
         rgb = self.display.get_image()
