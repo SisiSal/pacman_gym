@@ -110,9 +110,18 @@ model = DQN('CnnPolicy',
             env1, 
             policy_kwargs=policy_kwargs,
             verbose=1,
+            learning_rate=0.0007,
+            buffer_size=50000,
+            learning_starts=100,
+            train_freq=4,
+            gradient_steps=1,
+            target_update_interval=1000,
+            gamma=0.99,
+            exploration_fraction=0.3,
+            exploration_final_eps=0.1,
             tensorboard_log="./tensorboard_logs/")
 
-model.learn(total_timesteps=100000, #~3mil steps for ~25k episodes
+model.learn(total_timesteps=3000000, #~3mil steps for ~25k episodes
             log_interval=10,
             tb_log_name="dqn_easy_01")
 

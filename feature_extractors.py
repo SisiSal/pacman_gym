@@ -12,20 +12,28 @@ import pacman_gym.envs.pacman.util as utils
 ########################################
 
 class SmallPacmanCNN(BaseFeaturesExtractor):
-    def __init__(self, observation_space: spaces.Box, features_dim: int = 256):
+    def __init__(self, observation_space: spaces.Box, features_dim: int = 128):
         super().__init__(observation_space, features_dim)
 
         n_input_channels = observation_space.shape[0] # number of channels
 
+        # self.cnn = nn.Sequential(
+        #     nn.Conv2d(n_input_channels, 8, kernel_size=3, stride=1, padding=1),
+        #     nn.ReLU(),
+        #     nn.Conv2d(8, 16, kernel_size=3, stride=1, padding=1),
+        #     nn.ReLU(),
+        #     nn.Conv2d(16, 32, kernel_size=4, stride=1, padding=0),
+        #     nn.ReLU(),
+        #     nn.Flatten(),
+        # )
         self.cnn = nn.Sequential(
-            nn.Conv2d(n_input_channels, 8, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(n_input_channels, 16, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
-            nn.Conv2d(8, 16, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(16, 32, kernel_size=4, stride=1, padding=0),
+            nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.Flatten(),
         )
+
 
         with th.no_grad():
             sample = th.as_tensor(observation_space.sample()[None]).float()
@@ -41,7 +49,7 @@ class SmallPacmanCNN(BaseFeaturesExtractor):
 
 policy_kwargs = dict(
     features_extractor_class=SmallPacmanCNN,
-    features_extractor_kwargs=dict(features_dim=256),
+    features_extractor_kwargs=dict(features_dim=128),
 )
 
 #################################################
