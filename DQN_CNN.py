@@ -3,7 +3,7 @@ import random
 import gymnasium as gym
 import pacman_gym
 
-from stable_baselines3 import DQN, PPO
+from stable_baselines3 import DQN
 from feature_extractors import policy_kwargs
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.monitor import Monitor
@@ -125,7 +125,7 @@ model.learn(total_timesteps=3000000, #~3mil steps for ~25k episodes
             log_interval=10,
             tb_log_name="dqn_easy_01")
 
-model.save("dqn_easy_01")
+model.save("dqn_easy_01_3conv")
 
 #del model
 
@@ -144,14 +144,3 @@ for episode in range(5):
     obs, info = env1.reset()
 
 env1.close
-
-######################################
-## Train the PPO agent
-######################################
-
-model = PPO('CnnPolicy', 
-            env1,
-            policy_kwargs=policy_kwargs,
-            verbose=1)
-model.learn(total_timesteps=10000, log_interval=4)
-model.save("ppo_pacman")

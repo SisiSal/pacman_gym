@@ -12,27 +12,27 @@ import pacman_gym.envs.pacman.util as utils
 ########################################
 
 class SmallPacmanCNN(BaseFeaturesExtractor):
-    def __init__(self, observation_space: spaces.Box, features_dim: int = 128):
+    def __init__(self, observation_space: spaces.Box, features_dim: int = 256):
         super().__init__(observation_space, features_dim)
 
         n_input_channels = observation_space.shape[0] # number of channels
 
-        # self.cnn = nn.Sequential(
-        #     nn.Conv2d(n_input_channels, 8, kernel_size=3, stride=1, padding=1),
-        #     nn.ReLU(),
-        #     nn.Conv2d(8, 16, kernel_size=3, stride=1, padding=1),
-        #     nn.ReLU(),
-        #     nn.Conv2d(16, 32, kernel_size=4, stride=1, padding=0),
-        #     nn.ReLU(),
-        #     nn.Flatten(),
-        # )
         self.cnn = nn.Sequential(
-            nn.Conv2d(n_input_channels, 16, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(n_input_channels, 8, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(8, 16, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.Flatten(),
         )
+        # self.cnn = nn.Sequential(
+        #     nn.Conv2d(n_input_channels, 16, kernel_size=3, stride=1, padding=1),
+        #     nn.ReLU(),
+        #     nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
+        #     nn.ReLU(),
+        #     nn.Flatten(),
+        # )
 
 
         with th.no_grad():
@@ -49,7 +49,7 @@ class SmallPacmanCNN(BaseFeaturesExtractor):
 
 policy_kwargs = dict(
     features_extractor_class=SmallPacmanCNN,
-    features_extractor_kwargs=dict(features_dim=128),
+    features_extractor_kwargs=dict(features_dim=256),
 )
 
 #################################################
@@ -198,7 +198,7 @@ class AdvancedExtractor(FeatureExtractor):
                 scared_count += 1
         features["#-of-scared-ghosts-1-or-2-step-away"] = scared_count
 
-        # Feature 4: if there is no danger of ghosts then add the food feature
+        # Feature 4: if there is no danger of ghosts then eat food
         if not features["#-of-active-ghosts-1-step-away"] and food[next_x][next_y]:
             features["eats-food"] = 1.0
 
@@ -208,23 +208,26 @@ class AdvancedExtractor(FeatureExtractor):
             # make the distance a number less than one otherwise the update
             # will diverge wildly
             features["closest-food"] = float(dist_food) / (walls.width * walls.height)
-        
-        # Feature 6: if there is danger of ghosts then add the capsule feature
-        if features["#-of-active-ghosts-1-step-away"] and (next_x, next_y) in capsules:
-            features["eats-capsule"] = 1.0
 
-        # Feature 7: distance to the closest capsule
+        # Feature 6: distance to the closest capsule
         dist_capsule = closestTarget((next_x, next_y), capsules, walls)
         if dist_capsule is not None:
             features["closest-capsule"] = float(dist_capsule) / (walls.width * walls.height)
 
-        # Feature 8 and 9: distance and inverse distance to the closest active ghost
+        # Feature 7 and 8: if there is danger of ghosts then go towards nearest capsule and eat it
+        if features["#-of-active-ghosts-1-step-away"]:
+            if (next_x, next_y) in capsules:
+                features["eats-capsule"] = 1.0
+            if dist_capsule is not None:
+                features["towards-capsule"] = 1.0/(1.0 + float(dist_capsule))
+
+        # Feature 9 and 10: distance and inverse distance to the closest active ghost
         dist_active_ghost = closestTarget((next_x, next_y), active_ghosts, walls)
         if dist_active_ghost is not None:
             features["closest-active-ghost"] = float(dist_active_ghost) / (walls.width * walls.height)
             features["inv-closest-active-ghost"] = 1.0 / (1.0 + float(dist_active_ghost))
 
-        # Feature 10: distance to the closest scared ghost
+        # Feature 11: distance to the closest scared ghost
         dist_scared_ghost = closestTarget((next_x, next_y), scared_ghosts, walls)
         if dist_scared_ghost is not None:
             features["closest-scared-ghost"] = float(dist_scared_ghost) / (walls.width * walls.height)
