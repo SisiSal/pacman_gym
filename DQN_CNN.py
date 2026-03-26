@@ -1,15 +1,16 @@
 ### Deep Q-Learing with a CNN feature extractor for Pacman
 import random
 import gymnasium as gym
-import pacman_gym
 
 from stable_baselines3 import DQN
 from feature_extractors import policy_kwargs
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.monitor import Monitor
+from collections import defaultdict
+
 
 ######################################
-## Create the environment
+## Create the environments
 ######################################
 train_maps1 = ["easy_01"]
 
@@ -23,6 +24,8 @@ train_maps3 = ["easy_01",
 test_maps  = ["easy_02",
               "medium_05", "medium_06",
               "hard_05", "hard_06"]
+
+
 
 def make_env(train_layouts, test_layouts, split, seed=0):
     env = gym.make(
@@ -38,8 +41,13 @@ def make_env(train_layouts, test_layouts, split, seed=0):
     return Monitor(env)
 
 env1 = make_env(train_maps1, test_maps, split="train")
+test_env1 = make_env(train_maps1, train_maps1+test_maps, split="test")
+
 env2 = make_env(train_maps2, test_maps, split="train")
+test_env2 = make_env(train_maps2, train_maps2+test_maps, split="test")
+
 env3 = make_env(train_maps3, test_maps, split="train")
+test_env3 = make_env(train_maps3, train_maps3+test_maps, split="test")
 
 ######################################
 ## Hyperparameter tuning
@@ -127,20 +135,79 @@ model.learn(total_timesteps=3000000, #~3mil steps for ~25k episodes
 
 model.save("dqn_easy_01_3conv")
 
-#del model
+######################################
+## Test the DQN agent
+######################################
 
-#model = DQN.load("dqn_easy_01", env=env1)
+del model
 
-obs, info = env1.reset()
-print(f"Initial observation shape: {obs.shape}, observation space: {env1.observation_space}, info: {info}")
-for episode in range(5):
+env = test_env1
+
+model = DQN.load("dqn_easy_01_2conv", env=env)
+
+# store one record per episode, grouped by layout name
+results_by_layout = defaultdict(list)
+
+n_eval_episodes = 600
+
+for episode in range(n_eval_episodes):
+    obs, info = env.reset()
     done = False
+    episode_reward = 0.0
+
     while not done:
         action, _states = model.predict(obs, deterministic=True)
-        obs, reward, terminated, truncated, info = env1.step(action)
+        obs, reward, terminated, truncated, info = env.step(action)
+        episode_reward += reward
         done = terminated or truncated
-    
-    print(f"Episode {episode + 1} finished info: {info}")
-    obs, info = env1.reset()
 
-env1.close
+    layout_name = info["layout_name"]
+
+    results_by_layout[layout_name].append({
+        "episode_reward": episode_reward,
+        "is_success": info.get("is_success", False),
+        "final_score": info.get("final_score", 0.0),
+        "maxsteps_used": info.get("maxsteps_used", False),
+        "initial_num_food": info.get("initial_num_food", 0),
+        "remaining_food": info.get("remaining_food", 0),
+        "percent_food_eaten": info.get("percent_food_eaten", 0.0),
+        "normalized_score": info.get("normalized_score", 0.0),
+    })
+
+env.close()
+
+import numpy as np
+
+def summarize_results(results_by_layout):
+    summary_by_layout = {}
+
+    for layout_name, episodes in results_by_layout.items():
+        rewards = [ep["episode_reward"] for ep in episodes]
+        wins = [ep["is_success"] for ep in episodes]
+        final_scores = [ep["final_score"] for ep in episodes]
+        food_eaten = [ep["percent_food_eaten"] for ep in episodes]
+        normalized_scores = [ep["normalized_score"] for ep in episodes]
+        maxsteps_used = [ep["maxsteps_used"] for ep in episodes]
+
+        summary_by_layout[layout_name] = {
+            "num_episodes": len(episodes),
+            "mean_reward": float(np.mean(rewards)),
+            "std_reward": float(np.std(rewards)),
+            "min_reward": float(np.min(rewards)),
+            "max_reward": float(np.max(rewards)),
+            "win_rate": float(np.mean(wins)),
+            "mean_final_score": float(np.mean(final_scores)),
+            "mean_percent_food_eaten": float(np.mean(food_eaten)),
+            "mean_normalized_score": float(np.mean(normalized_scores)),
+            "maxsteps_rate": float(np.mean(maxsteps_used))
+            }
+
+
+    for layout_name, stats in summary_by_layout.items():
+        print(f"\nLayout: {layout_name}")
+        for k, v in stats.items():
+            print(f"  {k}: {v}")
+    
+    return summary_by_layout
+
+summary1 = summarize_results(results_by_layout)

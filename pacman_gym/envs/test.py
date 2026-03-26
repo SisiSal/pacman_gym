@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pacman_gym.envs.pacmanInterface import PacmanEnv
 
+all_layouts = ["hard_03", "hard_05"]
 train_maps = ["easy_01", 
               "medium_01", "medium_02", "medium_03", "medium_04",
               "hard_01", "hard_02", "hard_03", "hard_04"]
@@ -13,7 +14,7 @@ test_maps  = ["easy_02",
 ###########################################################
 #testing the human rendering mode
 env_train = PacmanEnv(seed=0, render_or_not=True, render_mode="human",
-                      train_layouts=train_maps, test_layouts=test_maps, split="train", max_steps=200)
+                      train_layouts=all_layouts, test_layouts=test_maps, split="train", max_steps=200)
 
 
 obs, info = env_train.reset()
