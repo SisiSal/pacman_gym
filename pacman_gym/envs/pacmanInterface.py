@@ -183,6 +183,24 @@ class PacmanEnv(gym.Env):
         """
         agentIndex = 0
 
+        # Convert action to int if it's a numpy array or torch tensor
+        if isinstance(action, np.ndarray):
+            if action.ndim == 0:
+                action = int(action)
+            elif action.size == 1:
+                action = int(action.item())
+            else:
+                action = int(action.argmax())
+        elif hasattr(action, "ndim"):  # torch tensor or similar
+            if action.ndim == 0:
+                action = int(action.item())
+            elif action.numel() == 1:
+                action = int(action.item())
+            else:
+                action = int(action.argmax().item())
+        else:
+            action = int(action)
+
         # Apply stochasticity to the action
         rdm = random.random()
         if rdm >= 2*self.stochasticity:

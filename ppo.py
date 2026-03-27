@@ -78,7 +78,6 @@ test_maps  = ["easy_02",
               "medium_05", "medium_06",
               "hard_05", "hard_06"]
 
-#update gym env first
 def make_env(train_layouts, test_layouts, split, seed=0):
     base_env = gym.make(
         'gymnasium_env/PacmanGen-v0',
@@ -119,7 +118,12 @@ def make_env(train_layouts, test_layouts, split, seed=0):
 env1 = make_env(train_maps1, test_maps, split="train")
 env2 = make_env(train_maps2, test_maps, split="train", seed=1)
 env3 = make_env(train_maps3, test_maps, split="train", seed=2)
-test_env = make_env(train_maps1, test_maps, split="test", seed=3)
+
+test_env = make_env(train_maps1, train_maps1, split="test", seed=3)
+
+test_env1 = make_env(train_maps1, test_maps, split="test", seed=4)
+test_env2 = make_env(train_maps2, test_maps, split="test", seed=5)
+test_env3 = make_env(train_maps3, test_maps, split="test", seed=6)
 
 #######################################################
 ## Policy
@@ -209,9 +213,9 @@ loss_module = ClipPPOLoss(
     critic_network=value_module,
     clip_epsilon=clip_epsilon,
     entropy_bonus=bool(entropy_eps),
-    entropy_coef=entropy_eps,
+    entropy_coeff=entropy_eps,
     # these keys match by default but we set this for completeness
-    critic_coef=1.0,
+    critic_coeff=1.0,
     loss_critic_type="smooth_l1",
 )
 
@@ -274,7 +278,7 @@ for i, tensordict_data in enumerate(collector):
         # it will then execute this policy at each step.
         with set_exploration_type(ExplorationType.DETERMINISTIC), torch.no_grad():
             # execute a rollout with the trained policy
-            eval_rollout = env.rollout(300, policy_module)
+            eval_rollout = test_env.rollout(300, policy_module)
             logs["eval reward"].append(eval_rollout["next", "reward"].mean().item())
             logs["eval reward (sum)"].append(
                 eval_rollout["next", "reward"].sum().item()
@@ -291,6 +295,30 @@ for i, tensordict_data in enumerate(collector):
     # We're also using a learning rate scheduler. Like the gradient clipping,
     # this is a nice-to-have but nothing necessary for PPO to work.
     scheduler.step()
+
+td = test_env.reset()
+done = False
+step = 0
+
+while not done and step < 10:
+    out = policy_module(td)
+    print("step", step)
+    print("chosen index:", out["action"].item())
+    print("logits:", out["logits"])
+
+    td = test_env.step(out)
+
+    reward = td["next", "reward"].item()
+    terminated = td["next", "terminated"].item()
+    truncated = td["next", "truncated"].item()
+    done = terminated or truncated
+
+    print("reward:", reward, "terminated:", terminated, "truncated:", truncated)
+    print()
+
+    td = td["next"]
+    step += 1
+
 
 #######################################################
 ## Results on training maps
