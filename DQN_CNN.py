@@ -1,10 +1,10 @@
 ### Deep Q-Learing with a CNN feature extractor for Pacman
 import random
 import gymnasium as gym
+import numpy as np
 
 from stable_baselines3 import DQN
 from feature_extractors import policy_kwargs
-from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.monitor import Monitor
 from collections import defaultdict
 
@@ -50,6 +50,38 @@ env3 = make_env(train_maps3, test_maps, split="train")
 test_env3 = make_env(train_maps3, train_maps3+test_maps, split="test")
 
 ######################################
+# Evaluation loop
+######################################
+
+def evaluate_dqn_hyp(model, env, n_eval_episodes=10):
+    rewards = []
+    successes = []
+
+    for _ in range(n_eval_episodes):
+        obs, _ = env.reset()
+        done = False
+        total_reward = 0
+        last_info = {}
+
+        while not done:
+            action, _ = model.predict(obs, deterministic=True)
+            obs, reward, terminated, truncated, info = env.step(action)
+
+            done = terminated or truncated
+            total_reward += reward
+            last_info = info
+
+        rewards.append(total_reward)
+        successes.append(float(last_info.get("is_success", 0.0)))
+
+    return {
+        "mean_reward": np.mean(rewards),
+        "std_reward": np.std(rewards),
+        "win_rate": np.mean(successes),
+    }
+
+
+######################################
 ## Hyperparameter tuning
 ######################################
 
@@ -80,11 +112,10 @@ def run_trial(trial_id, total_timesteps=100_000):
 
     model.learn(total_timesteps=total_timesteps)
 
-    mean_reward, std_reward = evaluate_policy(
+    stats = evaluate_dqn_hyp(
         model,
         env1,
         n_eval_episodes=10,
-        deterministic=True,
     )
 
     env1.close()
@@ -92,19 +123,25 @@ def run_trial(trial_id, total_timesteps=100_000):
     return {
         "trial_id": trial_id,
         "params": params,
-        "mean_reward": mean_reward,
-        "std_reward": std_reward,
+        "mean_reward": stats["mean_reward"],
+        "std_reward": stats["std_reward"],
+        "win_rate": stats["win_rate"],
     }
 
 results = []
-n_trials = 20
+n_trials = 15
 
 
 for i in range(n_trials):
     result = run_trial(i, total_timesteps=100_000)
     results.append(result)
-    print(f"Trial {i}: mean_reward={result['mean_reward']:.2f}, params={result['params']}")
-
+    print(
+        f"Trial {i}: "
+        f"mean_reward={result['mean_reward']:.2f}, "
+        f"win_rate={result['win_rate']:.2f}, "
+        f"params={result['params']}"
+        )
+    
 best_result = max(results, key=lambda x: x["mean_reward"])
 print("\nBest trial:")
 print(best_result)
