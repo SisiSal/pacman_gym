@@ -88,7 +88,7 @@ def make_env(train_layouts, test_layouts, split, seed=0):
         train_layouts=train_layouts, 
         test_layouts=test_layouts, 
         split=split,
-        max_steps=300
+        max_steps=600
     )
     env_torchRL = GymWrapper(base_env)
     env = TransformedEnv(

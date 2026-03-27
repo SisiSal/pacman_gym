@@ -11,6 +11,9 @@ from torch.utils.tensorboard import SummaryWriter
 from feature_extractors import AdvancedExtractor
 from pacman_gym.envs.pacman.util import Counter
 
+import itertools
+import time
+
 train_maps1 = ["easy_01"]
 
 train_maps2 = ["easy_01", "medium_01", "medium_02",
@@ -168,6 +171,7 @@ def train_approx_q_agent(
     writer = SummaryWriter(log_dir=log_dir, purge_step=start_episode)
     episode_returns = []
     eval_returns = []
+    eval_win_rates = []
 
     # mapping between env integer actions and Pacman action strings
     idx_to_action = env.get_action_meanings()  # ["Stop", "North", "South", "West", "East"]
@@ -190,21 +194,7 @@ def train_approx_q_agent(
 
             action_idx = action_to_idx[action_str]
 
-            obs_next, reward, terminated, truncated, info = env.step(action_idx)
-            
-            # verify if ending due to max step reached of ghost collision
-            # if terminated or truncated:
-            #     if truncated and not terminated:
-            #         end_reason = "max_steps"
-            #     elif terminated and info.get("is_success"):
-            #         end_reason = "win"
-            #     elif terminated:
-            #         end_reason = "death"
-            #     else:
-            #         end_reason = "unknown"
-
-            #     print(f"End reason: {end_reason}")
-                
+            obs_next, reward, terminated, truncated, info = env.step(action_idx)    
             done = terminated or truncated
             next_state = env.game.state
 
@@ -240,6 +230,9 @@ def train_approx_q_agent(
         if episode % evaluate_every == 0:
             eval_stats = evaluate_approx_q_agent(env, agent, num_episodes=eval_episodes)
 
+            eval_returns.append(eval_stats["avg_return"])
+            eval_win_rates.append(eval_stats["win_rate"])
+
             writer.add_scalar("eval/avg_return", eval_stats["avg_return"], episode)
             writer.add_scalar("eval/win_rate", eval_stats["win_rate"], episode)
             writer.add_scalar("eval/avg_final_score", eval_stats["avg_final_score"], episode)
@@ -254,7 +247,7 @@ def train_approx_q_agent(
                 f"epsilon: {agent.epsilon:.4f}"
             )
 
-    return episode_returns, eval_returns
+    return episode_returns, eval_returns, eval_win_rates
 
 def evaluate_approx_q_agent(env, agent, num_episodes=500):
     """
@@ -310,6 +303,84 @@ def evaluate_approx_q_agent(env, agent, num_episodes=500):
         "avg_normalized_score": float(np.mean(normalized_scores)),
     }
 
+###############################################
+# Hyperparameter tuning
+###############################################
+
+param_grid = {
+    "alpha": [0.05, 0.1],
+    "gamma": [0.95, 0.99],
+    "epsilon": [0.1, 0.2],
+    "epsilon_decay": [0.99, 0.995],
+}
+
+results = []
+
+for alpha, gamma, epsilon, epsilon_decay in itertools.product(
+    param_grid["alpha"],
+    param_grid["gamma"],
+    param_grid["epsilon"],
+    param_grid["epsilon_decay"],
+):
+    print("\n==============================")
+    print(f"alpha={alpha}, gamma={gamma}, eps={epsilon}, decay={epsilon_decay}")
+
+    # new extractor
+    extractor = AdvancedExtractor()
+
+    # new agent 
+    agent = ApproxQLearningPacman(
+        extractor=extractor,
+        alpha=alpha,
+        gamma=gamma,
+        epsilon=epsilon,
+        epsilon_decay=epsilon_decay,
+        epsilon_min=0.01,
+    )
+
+    # unique log dir
+    log_dir = f"runs/grid/alpha{alpha}_gamma{gamma}_eps{epsilon}_decay{epsilon_decay}_{int(time.time())}"
+
+    episode_returns, eval_returns, eval_win_rates = train_approx_q_agent(
+        env1,
+        agent,
+        num_episodes=500, 
+        evaluate_every=50,
+        eval_episodes=10,
+        log_dir=log_dir,
+        start_episode=0,
+    )
+
+    # take last eval score as performance
+    final_eval = eval_returns[-1]
+    final_win_rate = eval_win_rates[-1]
+
+    results.append({
+        "alpha": alpha,
+        "gamma": gamma,
+        "epsilon": epsilon,
+        "epsilon_decay": epsilon_decay,
+        "final_eval": final_eval,
+        "win_rate": final_win_rate
+    })
+
+best = max(results, key=lambda x: (x["win_rate"], x["final_eval"]))
+
+print("\n BEST CONFIG:")
+for k, v in best.items():
+    print(f"{k}: {v}")
+
+results_sorted = sorted(results, key=lambda x: -x["final_eval"])
+
+for r in results_sorted:
+    print(r)
+
+
+#########################################################
+# Training with chosen hyperparameters
+#########################################################
+
+
 
 extractor = AdvancedExtractor()
 
@@ -325,7 +396,7 @@ agent = ApproxQLearningPacman(
 train_returns, eval_returns = train_approx_q_agent(
     env1,
     agent,
-    num_episodes=1000,
+    num_episodes=500,
     evaluate_every=25,
     eval_episodes=10,
     log_dir="runs/approx_qlearning_600steps",
