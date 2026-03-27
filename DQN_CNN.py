@@ -125,6 +125,7 @@ model = DQN('CnnPolicy',
             gradient_steps=1,
             target_update_interval=1000,
             gamma=0.99,
+            exploration_initial_eps=1.0,
             exploration_fraction=0.3,
             exploration_final_eps=0.1,
             tensorboard_log="./tensorboard_logs/")

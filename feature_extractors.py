@@ -150,6 +150,7 @@ class AdvancedExtractor(FeatureExtractor):
     def getFeatures(self, state, action):
         # extract the grid of food and wall locations and get the ghost locations
         food = state.getFood()
+        curr_food_count = state.getNumFood()
         walls = state.getWalls()
         capsules = state.getCapsules()
         ghost_states = state.getGhostStates() # to get ghost positions and scared times
@@ -169,6 +170,9 @@ class AdvancedExtractor(FeatureExtractor):
         # next pacman position after he takes the action
         dx, dy = Actions.directionToVector(action)
         next_x, next_y = int(x + dx), int(y + dy)
+
+        # food count after he takes the action
+        next_food_count = curr_food_count - (1 if food[next_x][next_y] else 0)
 
         # Split the ghost states into scared and active ghosts
         active_ghosts = []
@@ -201,33 +205,36 @@ class AdvancedExtractor(FeatureExtractor):
         # Feature 4: if there is no danger of ghosts then eat food
         if not features["#-of-active-ghosts-1-step-away"] and food[next_x][next_y]:
             features["eats-food"] = 1.0
+        
+        # Feature 5: normalized eaten food count
+        features["food-cleared"] = 1.0 - float(next_food_count) / (walls.width * walls.height)
 
-        # Feature 5: distance to the closest food
+        # Feature 6: distance to the closest food
         dist_food = closestFood((next_x, next_y), food, walls)
         if dist_food is not None:
             # make the distance a number less than one otherwise the update
             # will diverge wildly
             features["closest-food"] = float(dist_food) / (walls.width * walls.height)
 
-        # Feature 6: distance to the closest capsule
+        # Feature 7: distance to the closest capsule
         dist_capsule = closestTarget((next_x, next_y), capsules, walls)
         if dist_capsule is not None:
             features["closest-capsule"] = float(dist_capsule) / (walls.width * walls.height)
 
-        # Feature 7 and 8: if there is danger of ghosts then go towards nearest capsule and eat it
+        # Feature 8 and 9: if there is danger of ghosts then go towards nearest capsule and eat it
         if features["#-of-active-ghosts-1-step-away"]:
             if (next_x, next_y) in capsules:
                 features["eats-capsule"] = 1.0
             if dist_capsule is not None:
                 features["towards-capsule"] = 1.0/(1.0 + float(dist_capsule))
 
-        # Feature 9 and 10: distance and inverse distance to the closest active ghost
+        # Feature 10 and 11: distance and inverse distance to the closest active ghost
         dist_active_ghost = closestTarget((next_x, next_y), active_ghosts, walls)
         if dist_active_ghost is not None:
             features["closest-active-ghost"] = float(dist_active_ghost) / (walls.width * walls.height)
             features["inv-closest-active-ghost"] = 1.0 / (1.0 + float(dist_active_ghost))
 
-        # Feature 11: distance to the closest scared ghost
+        # Feature 12: distance to the closest scared ghost
         dist_scared_ghost = closestTarget((next_x, next_y), scared_ghosts, walls)
         if dist_scared_ghost is not None:
             features["closest-scared-ghost"] = float(dist_scared_ghost) / (walls.width * walls.height)
