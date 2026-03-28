@@ -13,6 +13,7 @@ from pacman_gym.envs.pacman.util import Counter
 
 import itertools
 import time
+import pickle
 
 train_maps1 = ["easy_01"]
 
@@ -155,6 +156,14 @@ class ApproxQLearningPacman:
     def decay_epsilon(self):
         if self.epsilon_decay is not None:
             self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+
+    def save(self, path):
+        with open(path, "wb") as f:
+            pickle.dump(dict(self.weights), f)
+
+    def load(self, path):
+        with open(path, "rb") as f:
+            self.weights = defaultdict(float, pickle.load(f))
 
 def train_approx_q_agent(
     env,
@@ -377,34 +386,69 @@ for r in results_sorted:
 
 
 #########################################################
-# Training with chosen hyperparameters
+# Training best hyperparameter combinations
 #########################################################
-
-
 
 extractor = AdvancedExtractor()
 
 agent = ApproxQLearningPacman(
     extractor=extractor,
-    alpha=0.05,
-    gamma=0.99,
-    epsilon=0.2,
-    epsilon_decay=0.99,
+    alpha=0.25, #hyp1:0.1 hyp2:0.5 hyp3:0.25
+    gamma=0.95,
+    epsilon=0.15, #hyp1:0.2 hyp2:0.1 hyp3:0.15
+    epsilon_decay=0.995,
     epsilon_min=0.01,
 )
 
 train_returns, eval_returns = train_approx_q_agent(
     env1,
     agent,
-    num_episodes=500,
-    evaluate_every=25,
-    eval_episodes=10,
-    log_dir="runs/approx_qlearning_600steps",
+    num_episodes=1000,
+    evaluate_every=100,
+    eval_episodes=100,
+    log_dir="runs/approx_qlearning_hyp3",
     start_episode=0,
     )
 
 for k, v in sorted(agent.weights.items(), key=lambda x: -abs(x[1])):
     print(f"{k:35s} {v: .4f}")
 
+agent.save("aql_easy_01_hyp3_weights.pkl")
 
+# best one is hyp2 with alpha=0.5, gamma=0.95, epsilon=0.1, decay=0.995
+
+#########################################################
+# Training best chosen hyperparameters
+#########################################################
+
+del agent
+gc.collect()
+
+extractor = AdvancedExtractor()
+
+agent = ApproxQLearningPacman(
+    extractor=extractor,
+    alpha=0.5,
+    gamma=0.95,
+    epsilon=0.1, 
+    epsilon_decay=0.995,
+    epsilon_min=0.01,
+)
+
+# agent.load("aql_easy_01_hyp2_weights.pkl")
+
+train_returns, eval_returns = train_approx_q_agent(
+    env1,
+    agent,
+    num_episodes=500,
+    evaluate_every=100,
+    eval_episodes=100,
+    log_dir="runs/approx_qlearning_hyp2_no_toward_capsule",
+    start_episode=500,
+    )
+
+for k, v in sorted(agent.weights.items(), key=lambda x: -abs(x[1])):
+    print(f"{k:35s} {v: .4f}")
+
+# agent.save("aql_env1_no_towards_capsule.pkl")
 
