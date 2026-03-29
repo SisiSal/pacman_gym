@@ -38,7 +38,7 @@ def make_env(train_layouts, test_layouts, split, seed=0):
         train_layouts=train_layouts, 
         test_layouts=test_layouts, 
         split=split,
-        max_steps=600
+        max_steps=300
     )
     return Monitor(env)
 
@@ -153,7 +153,7 @@ gc.collect()
 
 #tensorboard --logdir .\tensorboard_logs
 model = DQN('CnnPolicy', 
-            env3, 
+            env2, 
             policy_kwargs=policy_kwargs,
             verbose=1,
             learning_rate=0.00025,
@@ -168,7 +168,7 @@ model = DQN('CnnPolicy',
             exploration_final_eps=0.05,
             tensorboard_log="./tensorboard_logs/")
 
-model.learn(total_timesteps=1682895, #~3mil steps for ~25k episodes
+model.learn(total_timesteps=1000000, #~3mil steps for ~25k episodes
             log_interval=1000,
             tb_log_name="dqn_env3_3conv")
 
@@ -204,3 +204,10 @@ df_summary_env2.to_csv("layout_summary_env2.csv", index=False)
 
 print(df_summary_env3)
 df_summary_env3.to_csv("layout_summary_env3.csv", index=False)
+
+
+
+model_env1_2conv = DQN.load("dqn_env1_2conv", env=env1)
+results_by_layout_env1_2conv, summary_by_layout_env1_2conv = evaluate_dqn_by_layout(model_env1_2conv, test_env1, n_eval_episodes=600, print_results=True)
+df_summary_env1_2conv = plot_layout_summary(summary_by_layout_env1_2conv, test_maps=test_maps)
+print(df_summary_env1_2conv)
