@@ -386,33 +386,33 @@ def evaluate_approx_q_agent(env, agent, num_episodes=500):
 # Training best hyperparameter combinations
 #########################################################
 
-# extractor = AdvancedExtractor()
+extractor = AdvancedExtractor()
 
-# agent = ApproxQLearningPacman(
-#     extractor=extractor,
-#     alpha=0.25, #hyp1:0.1 hyp2:0.5 hyp3:0.25
-#     gamma=0.95,
-#     epsilon=0.15, #hyp1:0.2 hyp2:0.1 hyp3:0.15
-#     epsilon_decay=0.995,
-#     epsilon_min=0.01,
-# )
+agent = ApproxQLearningPacman(
+    extractor=extractor,
+    alpha=0.05, #hyp1:0.1 hyp2:0.05
+    gamma=0.95,
+    epsilon=0.1, #hyp1:0.2 hyp2:0.1
+    epsilon_decay=0.995,
+    epsilon_min=0.01,
+)
 
-# train_returns, eval_returns = train_approx_q_agent(
-#     env1,
-#     agent,
-#     num_episodes=1000,
-#     evaluate_every=100,
-#     eval_episodes=100,
-#     log_dir="runs/approx_qlearning_hyp3",
-#     start_episode=0,
-#     )
+train_returns, eval_returns = train_approx_q_agent(
+    env1,
+    agent,
+    num_episodes=1000,
+    evaluate_every=100,
+    eval_episodes=100,
+    log_dir="runs/approx_qlearning_hyp2",
+    start_episode=0,
+    )
 
-# for k, v in sorted(agent.weights.items(), key=lambda x: -abs(x[1])):
-#     print(f"{k:35s} {v: .4f}")
+for k, v in sorted(agent.weights.items(), key=lambda x: -abs(x[1])):
+    print(f"{k:35s} {v: .4f}")
 
-# agent.save("aql_easy_01_hyp3_weights.pkl")
+agent.save("aql_easy_01_hyp3_weights.pkl")
 
-# best one is hyp2 with alpha=0.5, gamma=0.95, epsilon=0.1, decay=0.995
+# best one is hyp2 with alpha=0.05, gamma=0.95, epsilon=0.1, decay=0.995
 
 #########################################################
 # Training best chosen hyperparameters on env1
@@ -428,7 +428,7 @@ extractor = AdvancedExtractor()
 
 agent = ApproxQLearningPacman(
     extractor=extractor,
-    alpha=0.5,
+    alpha=0.05,
     gamma=0.95,
     epsilon=0.1, 
     epsilon_decay=0.995,
@@ -470,7 +470,7 @@ extractor = AdvancedExtractor()
 
 agent = ApproxQLearningPacman(
     extractor=extractor,
-    alpha=0.5,
+    alpha=0.05,
     gamma=0.95,
     epsilon=0.1, 
     epsilon_decay=0.995,
@@ -512,7 +512,7 @@ extractor = AdvancedExtractor()
 
 agent = ApproxQLearningPacman(
     extractor=extractor,
-    alpha=0.5,
+    alpha=0.05,
     gamma=0.95,
     epsilon=0.1, 
     epsilon_decay=0.995,
