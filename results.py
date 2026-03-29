@@ -3,9 +3,10 @@
 from collections import defaultdict
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 import numpy as np
 
-def evaluate_dqn_by_layout(model, env, n_eval_episodes=700, print_results=True):
+def evaluate_dqn_by_layout(model, env, n_eval_episodes=500, print_results=True):
     results_by_layout = defaultdict(list)
 
     for episode in range(n_eval_episodes):
@@ -67,7 +68,7 @@ def evaluate_dqn_by_layout(model, env, n_eval_episodes=700, print_results=True):
     return results_by_layout, summary_by_layout
 
 
-def evaluate_approx_q_by_layout(agent, env, n_eval_episodes=700, print_results=True):
+def evaluate_approx_q_by_layout(agent, env, n_eval_episodes=500, print_results=True):
     results_by_layout = defaultdict(list)
 
     old_epsilon = agent.epsilon
@@ -142,49 +143,55 @@ def evaluate_approx_q_by_layout(agent, env, n_eval_episodes=700, print_results=T
     return results_by_layout, summary_by_layout
 
 
-def plot_layout_summary(summary_by_layout):
+def plot_layout_summary(summary_by_layout, test_maps=None): 
     df = pd.DataFrame(summary_by_layout).T
     df = df.reset_index().rename(columns={"index": "layout_name"})
+    
 
-    # optional: sort layouts by name
-    df = df.sort_values("layout_name")
+    # NEW: assign colors
+    df["color"] = df["layout_name"].apply(
+        lambda x: "orange" if x in test_maps else "blue"
+    )
 
-    # 1. Mean reward
+    df = df.sort_values("color")  # sort by color and then layout name
+    
+    legend_elements = [
+    Patch(facecolor='blue', label='Train layouts'),
+    Patch(facecolor='orange', label='Test layouts')
+]
+
+# 1. Mean reward
     plt.figure(figsize=(8, 4))
-    plt.bar(df["layout_name"], df["mean_reward"])
+    plt.bar(df["layout_name"], df["mean_reward"], color=df["color"])
     plt.title("Mean Reward by Layout")
-    plt.xlabel("Layout")
-    plt.ylabel("Mean Reward")
+    plt.legend(handles=legend_elements)
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.show()
 
     # 2. Win rate
     plt.figure(figsize=(8, 4))
-    plt.bar(df["layout_name"], df["win_rate"])
+    plt.bar(df["layout_name"], df["win_rate"], color=df["color"])
     plt.title("Win Rate by Layout")
-    plt.xlabel("Layout")
-    plt.ylabel("Win Rate")
+    plt.legend(handles=legend_elements)
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.show()
 
-    # 3. Mean percent food eaten
+    # 3. Percent food eaten
     plt.figure(figsize=(8, 4))
-    plt.bar(df["layout_name"], df["mean_percent_food_eaten"])
+    plt.bar(df["layout_name"], df["mean_percent_food_eaten"], color=df["color"])
     plt.title("Mean Percent Food Eaten by Layout")
-    plt.xlabel("Layout")
-    plt.ylabel("Percent Food Eaten")
+    plt.legend(handles=legend_elements)
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.show()
 
-    # 4. Mean normalized score
+    # 4. Normalized score
     plt.figure(figsize=(8, 4))
-    plt.bar(df["layout_name"], df["mean_normalized_score"])
+    plt.bar(df["layout_name"], df["mean_normalized_score"], color=df["color"])
     plt.title("Mean Normalized Score by Layout")
-    plt.xlabel("Layout")
-    plt.ylabel("Normalized Score")
+    plt.legend(handles=legend_elements)
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.show()

@@ -148,10 +148,12 @@ test_env3 = make_env(train_maps3, train_maps3+test_maps, split="test")
 ## Train the DQN agent
 ######################################
 
-#tensorboard --logdir .\tensorboard_logs
+import gc
+gc.collect()
 
+#tensorboard --logdir .\tensorboard_logs
 model = DQN('CnnPolicy', 
-            env2, 
+            env3, 
             policy_kwargs=policy_kwargs,
             verbose=1,
             learning_rate=0.00025,
@@ -166,26 +168,39 @@ model = DQN('CnnPolicy',
             exploration_final_eps=0.05,
             tensorboard_log="./tensorboard_logs/")
 
-model.learn(total_timesteps=3000000, #~3mil steps for ~25k episodes
+model.learn(total_timesteps=1682895, #~3mil steps for ~25k episodes
             log_interval=1000,
-            tb_log_name="dqn_env2_3conv")
+            tb_log_name="dqn_env3_3conv")
 
-model.save("dqn_env2_3conv")
+model.save("dqn_env3_3conv")
 
 ######################################
 ## Test the DQN agent
 ######################################
 
-#del model
+del model
 
-model = DQN.load("dqn_env1_3conv", env=env1)
-#model = DQN.load("dqn_env1_2conv", env=env1)
+model_env1 = DQN.load("dqn_env1_3conv", env=env1)
+model_env2 = DQN.load("dqn_env2_3conv", env=env2)
+model_env3 = DQN.load("dqn_env3_3conv", env=env3)
 
-results_by_layout, summary_by_layout = evaluate_dqn_by_layout(model, test_env1, n_eval_episodes=700, print_results=True)
+results_by_layout_env1, summary_by_layout_env1 = evaluate_dqn_by_layout(model_env1, test_env1, n_eval_episodes=600, print_results=True)
+results_by_layout_env2, summary_by_layout_env2 = evaluate_dqn_by_layout(model_env2, test_env2, n_eval_episodes=1000, print_results=True)
+results_by_layout_env3, summary_by_layout_env3 = evaluate_dqn_by_layout(model_env3, test_env3, n_eval_episodes=00, print_results=True)
 
 ######################################
 ## Plot results
 ######################################
 
-df_summary = plot_layout_summary(summary_by_layout)
+df_summary_env1 = plot_layout_summary(summary_by_layout_env1, test_maps=test_maps)
+df_summary_env2 = plot_layout_summary(summary_by_layout_env2, test_maps=test_maps)
+df_summary_env3 = plot_layout_summary(summary_by_layout_env3, test_maps=test_maps)
 
+print(df_summary_env1)
+df_summary_env1.to_csv("layout_summary_env1.csv", index=False)
+
+print(df_summary_env2)
+df_summary_env2.to_csv("layout_summary_env2.csv", index=False)
+
+print(df_summary_env3)
+df_summary_env3.to_csv("layout_summary_env3.csv", index=False)
