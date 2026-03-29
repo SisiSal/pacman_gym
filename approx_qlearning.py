@@ -390,9 +390,9 @@ extractor = AdvancedExtractor()
 
 agent = ApproxQLearningPacman(
     extractor=extractor,
-    alpha=0.05, #hyp1:0.1 hyp2:0.05
+    alpha=0.1, #hyp1:0.1 hyp2:0.05
     gamma=0.95,
-    epsilon=0.1, #hyp1:0.2 hyp2:0.1
+    epsilon=0.2, #hyp1:0.2 hyp2:0.1
     epsilon_decay=0.995,
     epsilon_min=0.01,
 )
@@ -400,19 +400,19 @@ agent = ApproxQLearningPacman(
 train_returns, eval_returns = train_approx_q_agent(
     env1,
     agent,
-    num_episodes=1000,
+    num_episodes=500,
     evaluate_every=100,
     eval_episodes=100,
-    log_dir="runs/approx_qlearning_hyp2",
+    log_dir="runs/feature_selection/aql_hyp1_no_inv_closest_active_ghost",
     start_episode=0,
     )
 
 for k, v in sorted(agent.weights.items(), key=lambda x: -abs(x[1])):
     print(f"{k:35s} {v: .4f}")
 
-agent.save("aql_easy_01_hyp3_weights.pkl")
+agent.save("aql_hyp1_new.pkl")
 
-# best one is hyp2 with alpha=0.05, gamma=0.95, epsilon=0.1, decay=0.995
+# best one is hyp1 with alpha=0.1, gamma=0.95, epsilon=0.2, decay=0.995
 
 #########################################################
 # Training best chosen hyperparameters on env1
@@ -428,9 +428,9 @@ extractor = AdvancedExtractor()
 
 agent = ApproxQLearningPacman(
     extractor=extractor,
-    alpha=0.05,
+    alpha=0.1,
     gamma=0.95,
-    epsilon=0.1, 
+    epsilon=0.2, 
     epsilon_decay=0.995,
     epsilon_min=0.01,
 )
@@ -440,7 +440,7 @@ agent = ApproxQLearningPacman(
 train_returns, eval_returns, eval_win_rates = train_approx_q_agent(
     env1,
     agent,
-    num_episodes=1500,
+    num_episodes=500,
     evaluate_every=100,
     eval_episodes=100,
     log_dir="runs/approx_qlearning_env1",
@@ -470,9 +470,9 @@ extractor = AdvancedExtractor()
 
 agent = ApproxQLearningPacman(
     extractor=extractor,
-    alpha=0.05,
+    alpha=0.1,
     gamma=0.95,
-    epsilon=0.1, 
+    epsilon=0.2, 
     epsilon_decay=0.995,
     epsilon_min=0.01,
 )
@@ -482,7 +482,7 @@ agent = ApproxQLearningPacman(
 train_returns, eval_returns, eval_win_rates = train_approx_q_agent(
     env2,
     agent,
-    num_episodes=7500,
+    num_episodes=2000,
     evaluate_every=100,
     eval_episodes=100,
     log_dir="runs/approx_qlearning_env2",
@@ -512,9 +512,9 @@ extractor = AdvancedExtractor()
 
 agent = ApproxQLearningPacman(
     extractor=extractor,
-    alpha=0.05,
+    alpha=0.1,
     gamma=0.95,
-    epsilon=0.1, 
+    epsilon=0.2, 
     epsilon_decay=0.995,
     epsilon_min=0.01,
 )
@@ -524,7 +524,7 @@ agent = ApproxQLearningPacman(
 train_returns, eval_returns, eval_win_rates = train_approx_q_agent(
     env3,
     agent,
-    num_episodes=13500,
+    num_episodes=4000,
     evaluate_every=100,
     eval_episodes=100,
     log_dir="runs/approx_qlearning_env3",
