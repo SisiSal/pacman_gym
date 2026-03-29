@@ -38,7 +38,7 @@ def make_env(train_layouts, test_layouts, split, seed=0):
         train_layouts=train_layouts, 
         test_layouts=test_layouts, 
         split=split,
-        max_steps=600
+        max_steps=300
     )
     return env.unwrapped
 
@@ -203,6 +203,7 @@ def train_approx_q_agent(
 
             obs_next, reward, terminated, truncated, info = env.step(action_idx)    
             done = terminated or truncated
+            
             next_state = env.game.state
 
             agent.update(env, state, action_str, next_state, reward, done)
@@ -344,40 +345,37 @@ def evaluate_approx_q_agent(env, agent, num_episodes=500):
 #         epsilon_min=0.01,
 #     )
 
-#     # unique log dir
 #     log_dir = f"runs/grid/alpha{alpha}_gamma{gamma}_eps{epsilon}_decay{epsilon_decay}_{int(time.time())}"
 
 #     episode_returns, eval_returns, eval_win_rates = train_approx_q_agent(
 #         env1,
 #         agent,
-#         num_episodes=500, 
-#         evaluate_every=50,
-#         eval_episodes=10,
+#         num_episodes=500,
+#         evaluate_every=100,
+#         eval_episodes=50,
 #         log_dir=log_dir,
-#         start_episode=0,
 #     )
 
-#     # take last eval score as performance
-#     final_eval = eval_returns[-1]
-#     final_win_rate = eval_win_rates[-1]
+#     # do one final evaluation explicitly
+#     final_stats = evaluate_approx_q_agent(env2, agent, num_episodes=50)
 
 #     results.append({
 #         "alpha": alpha,
-#         "gamma": gamma,
 #         "epsilon": epsilon,
-#         "epsilon_decay": epsilon_decay,
-#         "final_eval": final_eval,
-#         "win_rate": final_win_rate
+#         "final_eval": final_stats["avg_return"],
+#         "win_rate": final_stats["win_rate"],
+#         "avg_final_score": final_stats["avg_final_score"],
+#         "avg_percent_food_eaten": final_stats["avg_percent_food_eaten"],
+#         "avg_normalized_score": final_stats["avg_normalized_score"],
 #     })
 
 # best = max(results, key=lambda x: (x["win_rate"], x["final_eval"]))
 
-# print("\n BEST CONFIG:")
+# print("\nBEST CONFIG:")
 # for k, v in best.items():
 #     print(f"{k}: {v}")
 
-# results_sorted = sorted(results, key=lambda x: -x["final_eval"])
-
+# results_sorted = sorted(results, key=lambda x: (x["win_rate"], x["final_eval"]), reverse=True)
 # for r in results_sorted:
 #     print(r)
 
@@ -390,29 +388,29 @@ extractor = AdvancedExtractor()
 
 agent = ApproxQLearningPacman(
     extractor=extractor,
-    alpha=0.1, #hyp1:0.1 hyp2:0.05
-    gamma=0.95,
-    epsilon=0.2, #hyp1:0.2 hyp2:0.1
-    epsilon_decay=0.995,
+    alpha=0.05,
+    gamma=0.99,
+    epsilon=0.2,
+    epsilon_decay=0.997,
     epsilon_min=0.01,
 )
 
-train_returns, eval_returns = train_approx_q_agent(
-    env1,
+train_returns, eval_returns, eval_win_rates = train_approx_q_agent(
+    env2,
     agent,
-    num_episodes=500,
-    evaluate_every=100,
+    num_episodes=1000,
+    evaluate_every=200,
     eval_episodes=100,
-    log_dir="runs/feature_selection/aql_hyp1_no_inv_closest_active_ghost",
+    log_dir="runs/env2_alpha0.05_gamma0.99_eps0.2_decay0.997",
     start_episode=0,
     )
 
 for k, v in sorted(agent.weights.items(), key=lambda x: -abs(x[1])):
     print(f"{k:35s} {v: .4f}")
 
-agent.save("aql_hyp1_new.pkl")
+agent.save("aql_env2_new.pkl")
 
-# best one is hyp1 with alpha=0.1, gamma=0.95, epsilon=0.2, decay=0.995
+# best one for env1 is hyp1 with alpha=0.1, gamma=0.95, epsilon=0.2, decay=0.995
 
 #########################################################
 # Training best chosen hyperparameters on env1
@@ -482,7 +480,7 @@ agent = ApproxQLearningPacman(
 train_returns, eval_returns, eval_win_rates = train_approx_q_agent(
     env2,
     agent,
-    num_episodes=2000,
+    num_episodes=1000,
     evaluate_every=100,
     eval_episodes=100,
     log_dir="runs/approx_qlearning_env2",
@@ -524,7 +522,7 @@ agent = ApproxQLearningPacman(
 train_returns, eval_returns, eval_win_rates = train_approx_q_agent(
     env3,
     agent,
-    num_episodes=4000,
+    num_episodes=2000,
     evaluate_every=100,
     eval_episodes=100,
     log_dir="runs/approx_qlearning_env3",
