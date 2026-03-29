@@ -1,5 +1,6 @@
 # Proximal Policy Optimization for Pacman
 import gymnasium as gym
+import numpy as np
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -54,7 +55,7 @@ max_grad_norm = 1.0
 frames_per_batch = 4000
 
 # For a complete training, bring the number of frames up to 1M
-total_frames = 500_000
+total_frames = 1_000_000
 
 #######################################################
 ## PPO parameters
@@ -105,7 +106,7 @@ def make_env(train_layouts, test_layouts, split, seed=0):
         train_layouts=train_layouts, 
         test_layouts=test_layouts, 
         split=split,
-        max_steps=600
+        max_steps=300
     )
     env_torchRL = GymWrapper(base_env, device=device, categorical_action_encoding=True)
     env = TransformedEnv(
@@ -324,42 +325,32 @@ for i, tensordict_data in enumerate(collector):
     scheduler.step()
 
 
-# td = env.reset()
-# out = collector_policy_module(td)
-# print(out["action"].shape)
-# print(out["action"])
+#######################################################
+## Save model
+#######################################################
 
-# td = env.reset()
-# out = collector_policy_module(td)
-# out["action"] = out["action"].squeeze(-1)
-# env.step(out)
-
-# td = test_env.reset()
-# done = False
-# step = 0
-
-# while not done and step < 10:
-#     out = collector_policy_module(td)
-#     print("step", step)
-#     print("chosen index:", out["action"].item())
-#     print("logits:", out["logits"])
-
-#     td = test_env.step(out)
-
-#     reward = td["next", "reward"].item()
-#     terminated = td["next", "terminated"].item()
-#     truncated = td["next", "truncated"].item()
-#     done = terminated or truncated
-
-#     print("reward:", reward, "terminated:", terminated, "truncated:", truncated)
-#     print()
-
-#     td = td["next"]
-#     step += 1
+torch.save({
+    "policy": collector_policy_module.state_dict(),
+    "value": value_module.state_dict(),
+    "optimizer": optim.state_dict(),
+}, "ppo_pacman.pt")
 
 
 #######################################################
-## Results on training maps
+## Load model
+#######################################################
+
+checkpoint = torch.load("ppo_pacman.pt", map_location=device)
+
+collector_policy_module.load_state_dict(checkpoint["policy"])
+value_module.load_state_dict(checkpoint["value"])
+optim.load_state_dict(checkpoint["optimizer"])
+
+collector_policy_module.eval()
+value_module.eval()
+
+#######################################################
+## Results
 #######################################################
 
 plt.figure(figsize=(10, 10))
@@ -378,98 +369,154 @@ plt.title("Max step count (test)")
 plt.show()
 
 #######################################################
-## Results on testing maps
+## Results on env1 to establish a baseline
 #######################################################
 
-import numpy as np
+def evaluate_ppo_agent(env, policy_module, num_episodes=100):
+    returns = []
+    successes = []
+    final_scores = []
+    percent_food_eaten = []
+    normalized_scores = []
+    episode_lengths = []
 
-# def evaluate_test_maps_by_name(test_env, policy_module, num_episodes=20):
-#     returns_by_map = defaultdict(list)
-#     steps_by_map = defaultdict(list)
+    policy_module.eval()
 
-#     with set_exploration_type(ExplorationType.DETERMINISTIC), torch.no_grad():
-#         for _ in range(num_episodes):
-#             td = test_env.reset()
+    with torch.no_grad(), set_exploration_type(ExplorationType.DETERMINISTIC):
+        for episode in range(num_episodes):
+            td = env.reset()
+            done = False
+            episode_return = 0.0
+            steps = 0
+            last_info = None
 
-#             # layout name comes from reset info
-#             layout_name = td["layout_name"] if "layout_name" in td.keys() else None
+            while not done:
+                td = policy_module(td)
+                td = env.step(td)
 
-#             done = False
-#             episode_return = 0.0
-#             step_count = 0
+                reward = td["next", "reward"].item()
+                episode_return += reward
+                steps += 1
 
-#             while not done:
-#                 td = policy_module(td)
-#                 td = test_env.step(td)
+                terminated = td["next", "terminated"].item()
+                truncated = td["next", "truncated"].item()
+                done = terminated or truncated
 
-#                 reward = td["next", "reward"].item()
-#                 episode_return += reward
+                if done:
+                    if "info" in td["next"].keys():
+                        last_info = td["next", "info"]
 
-#                 terminated = td["next", "terminated"].item()
-#                 truncated = td["next", "truncated"].item()
-#                 done = terminated or truncated
+                td = td["next"]
 
-#                 step_count += 1
-#                 td = td["next"]
+            returns.append(episode_return)
+            episode_lengths.append(steps)
 
-#             returns_by_map[layout_name].append(episode_return)
-#             steps_by_map[layout_name].append(step_count)
+            if last_info is not None:
+                successes.append(float(last_info.get("is_success", 0.0)))
+                final_scores.append(float(last_info.get("final_score", 0.0)))
+                percent_food_eaten.append(float(last_info.get("percent_food_eaten", 0.0)))
+                normalized_scores.append(float(last_info.get("normalized_score", 0.0)))
 
-
-#     summary = {}
-#     for map_name in returns_by_map:
-#         summary[map_name] = {
-#             "mean_return": float(np.mean(returns_by_map[map_name])),
-#             "std_return": float(np.std(returns_by_map[map_name])),
-#             "mean_steps": float(np.mean(steps_by_map[map_name])),
-#             "n_episodes": len(returns_by_map[map_name]),
-#         }
-
-#     return summary
-
-results_by_map = defaultdict(lambda: {
-    "returns": [],
-    "normalized_scores": [],
-    "percent_food_eaten": [],
-    "successes": [],
-})
-
-for episode in range(500):
-    td = test_env.reset()
-    done = False
-    episode_return = 0.0
-
-    while not done:
-        td = policy_module(td)
-        td = test_env.step(td)
-
-        reward = td["next", "reward"].item()
-        episode_return += reward
-
-        terminated = td["next", "terminated"].item()
-        truncated = td["next", "truncated"].item()
-        done = terminated or truncated
-
-        if done:
-            info = td["next", "info"]   # assuming terminal info is accessible
-            layout_name = info["layout_name"]
-
-            results_by_map[layout_name]["returns"].append(episode_return)
-            results_by_map[layout_name]["normalized_scores"].append(info["normalized_score"])
-            results_by_map[layout_name]["percent_food_eaten"].append(info["percent_food_eaten"])
-            results_by_map[layout_name]["successes"].append(float(info["is_success"]))
-            # inspect terminal info to see if we can get layout names and other useful info for evaluation
-            print(td)
-
-        td = td["next"]
-
-summary = {}
-
-for layout_name, vals in results_by_map.items():
-    summary[layout_name] = {
-        "mean_return": float(np.mean(vals["returns"])),
-        "mean_normalized_score": float(np.mean(vals["normalized_scores"])),
-        "mean_percent_food_eaten": float(np.mean(vals["percent_food_eaten"])),
-        "win_rate": float(np.mean(vals["successes"])),
-        "num_episodes": len(vals["returns"]),
+    results = {
+        "avg_return": float(np.mean(returns)),
+        "std_return": float(np.std(returns)),
+        "win_rate": float(np.mean(successes)) if successes else 0.0,
+        "avg_final_score": float(np.mean(final_scores)) if final_scores else 0.0,
+        "avg_percent_food_eaten": float(np.mean(percent_food_eaten)) if percent_food_eaten else 0.0,
+        "avg_normalized_score": float(np.mean(normalized_scores)) if normalized_scores else 0.0,
+        "avg_episode_length": float(np.mean(episode_lengths)),
     }
+
+    return results
+
+results = evaluate_ppo_agent(test_env, collector_policy_module, num_episodes=100)
+
+for k, v in results.items():
+    print(f"{k}: {v}")
+
+
+
+
+
+####################
+def evaluate_ppo_agent_gym(base_env, num_episodes=100, device="cpu"):
+    import numpy as np
+    import torch
+    from tensordict import TensorDict
+    from torchrl.envs.utils import set_exploration_type, ExplorationType
+
+    returns = []
+    successes = []
+    final_scores = []
+    percent_food_eaten = []
+    normalized_scores = []
+    episode_lengths = []
+
+    probabilistic_actor.eval()
+
+    with torch.no_grad(), set_exploration_type(ExplorationType.DETERMINISTIC):
+        for _ in range(num_episodes):
+            obs, info = base_env.reset()
+            done = False
+            ep_return = 0.0
+            steps = 0
+            last_info = {}
+
+            while not done:
+                obs_tensor = torch.tensor(obs, dtype=torch.float32, device=device).unsqueeze(0)
+
+                td = TensorDict(
+                    {"observation": obs_tensor},
+                    batch_size=[1],
+                    device=device,
+                )
+
+                td = probabilistic_actor(td)
+
+                action = td["action"].item()
+
+                obs, reward, terminated, truncated, info = base_env.step(action)
+                done = terminated or truncated
+
+                ep_return += reward
+                steps += 1
+                last_info = info
+
+            returns.append(ep_return)
+            episode_lengths.append(steps)
+
+            successes.append(float(last_info.get("is_success", 0.0)))
+            final_scores.append(float(last_info.get("final_score", 0.0)))
+            percent_food_eaten.append(float(last_info.get("percent_food_eaten", 0.0)))
+            normalized_scores.append(float(last_info.get("normalized_score", 0.0)))
+
+    return {
+        "avg_return": float(np.mean(returns)),
+        "std_return": float(np.std(returns)),
+        "win_rate": float(np.mean(successes)),
+        "avg_final_score": float(np.mean(final_scores)),
+        "avg_percent_food_eaten": float(np.mean(percent_food_eaten)),
+        "avg_normalized_score": float(np.mean(normalized_scores)),
+        "avg_episode_length": float(np.mean(episode_lengths)),
+    }
+
+
+env1_unwrapped = gym.make(
+        'gymnasium_env/PacmanGen-v0',
+        seed=0, 
+        render_or_not=False, 
+        render_mode="tinygrid",
+        train_layouts=train_maps1, 
+        test_layouts=test_maps, 
+        split="train",
+        max_steps=300
+    )
+
+results = evaluate_ppo_agent_gym(
+    env1_unwrapped,
+    num_episodes=100,
+    device=device,
+)
+
+for k, v in results.items():
+    print(f"{k}: {v}")
