@@ -225,14 +225,14 @@ class AdvancedExtractor(FeatureExtractor):
         if features["#-of-active-ghosts-1-step-away"]:
             if (next_x, next_y) in capsules:
                 features["eats-capsule"] = 1.0
-            if dist_capsule is not None:
-                features["towards-capsule"] = 1.0/(1.0 + float(dist_capsule))
+            # if dist_capsule is not None:
+            #     features["towards-capsule"] = 1.0/(1.0 + float(dist_capsule))
 
         # Feature 10 and 11: distance and inverse distance to the closest active ghost
         dist_active_ghost = closestTarget((next_x, next_y), active_ghosts, walls)
         if dist_active_ghost is not None:
             features["closest-active-ghost"] = float(dist_active_ghost) / (walls.width * walls.height)
-            features["inv-closest-active-ghost"] = 1.0 / (1.0 + float(dist_active_ghost))
+            #features["inv-closest-active-ghost"] = 1.0 / (1.0 + float(dist_active_ghost))
 
         # Feature 12: distance to the closest scared ghost
         dist_scared_ghost = closestTarget((next_x, next_y), scared_ghosts, walls)

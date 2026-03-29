@@ -18,7 +18,7 @@ class PacmanEnv(gym.Env):
 
     def __init__(
             self, seed, render_or_not, render_mode, move_ghosts=True, stochasticity=0.0,
-            train_layouts=None, test_layouts=None, split="train", fixed_map=None, num_ghosts=3, max_steps=200
+            train_layouts=None, test_layouts=None, split="train", fixed_map=None, num_ghosts=3, max_steps=300
             ):
         """"""
         self._seed = seed
@@ -182,6 +182,7 @@ class PacmanEnv(gym.Env):
                  use this for learning.
         """
         agentIndex = 0
+        self.steps += 1
 
         # Apply stochasticity to the action
         rdm = random.random()
@@ -365,7 +366,7 @@ class PacmanEnv(gym.Env):
         return self.A
 
     def _check_if_maxsteps(self):
-        return (self.max_steps == len(self.game.moveHistory))
+        return (self.max_steps <= self.steps)
 
     @staticmethod
     def constraint_func(self):
