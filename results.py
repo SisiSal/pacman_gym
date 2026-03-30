@@ -144,6 +144,8 @@ def evaluate_approx_q_by_layout(agent, env, n_eval_episodes=500, print_results=T
 
 
 def plot_layout_summary(summary_by_layout, test_maps=None): 
+    test_maps = test_maps or []
+
     df = pd.DataFrame(summary_by_layout).T
     df = df.reset_index().rename(columns={"index": "layout_name"})
     
