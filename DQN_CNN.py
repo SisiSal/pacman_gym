@@ -8,6 +8,8 @@ from feature_extractors import policy_kwargs
 from stable_baselines3.common.monitor import Monitor
 from collections import defaultdict
 
+from results import evaluate_dqn_by_layout, plot_layout_summary
+
 
 ######################################
 ## Create the environments
@@ -36,7 +38,7 @@ def make_env(train_layouts, test_layouts, split, seed=0):
         train_layouts=train_layouts, 
         test_layouts=test_layouts, 
         split=split,
-        max_steps=600
+        max_steps=300
     )
     return Monitor(env)
 
@@ -50,40 +52,35 @@ env3 = make_env(train_maps3, test_maps, split="train")
 test_env3 = make_env(train_maps3, train_maps3+test_maps, split="test")
 
 ######################################
-# Evaluation loop
-######################################
-
-def evaluate_dqn_hyp(model, env, n_eval_episodes=10):
-    rewards = []
-    successes = []
-
-    for _ in range(n_eval_episodes):
-        obs, _ = env.reset()
-        done = False
-        total_reward = 0
-        last_info = {}
-
-        while not done:
-            action, _ = model.predict(obs, deterministic=True)
-            obs, reward, terminated, truncated, info = env.step(action)
-
-            done = terminated or truncated
-            total_reward += reward
-            last_info = info
-
-        rewards.append(total_reward)
-        successes.append(float(last_info.get("is_success", 0.0)))
-
-    return {
-        "mean_reward": np.mean(rewards),
-        "std_reward": np.std(rewards),
-        "win_rate": np.mean(successes),
-    }
-
-
-######################################
 ## Hyperparameter tuning
 ######################################
+
+# def evaluate_dqn(model, env, n_eval_episodes=10):
+#     rewards = []
+#     successes = []
+
+#     for _ in range(n_eval_episodes):
+#         obs, _ = env.reset()
+#         done = False
+#         total_reward = 0
+#         last_info = {}
+
+#         while not done:
+#             action, _ = model.predict(obs, deterministic=True)
+#             obs, reward, terminated, truncated, info = env.step(action)
+
+#             done = terminated or truncated
+#             total_reward += reward
+#             last_info = info
+
+#         rewards.append(total_reward)
+#         successes.append(float(last_info.get("is_success", 0.0)))
+
+#     return {
+#         "mean_reward": np.mean(rewards),
+#         "std_reward": np.std(rewards),
+#         "win_rate": np.mean(successes),
+#     }
 
 # def sample_hyperparams_DQN():
 #     return {
@@ -112,7 +109,7 @@ def evaluate_dqn_hyp(model, env, n_eval_episodes=10):
 
 #     model.learn(total_timesteps=total_timesteps)
 
-#     stats = evaluate_dqn_hyp(
+#     stats = evaluate_dqn(
 #         model,
 #         env1,
 #         n_eval_episodes=10,
@@ -151,8 +148,12 @@ def evaluate_dqn_hyp(model, env, n_eval_episodes=10):
 ## Train the DQN agent
 ######################################
 
+import gc
+gc.collect()
+
+#tensorboard --logdir .\tensorboard_logs
 model = DQN('CnnPolicy', 
-            env1, 
+            env2, 
             policy_kwargs=policy_kwargs,
             verbose=1,
             learning_rate=0.00025,
@@ -167,85 +168,46 @@ model = DQN('CnnPolicy',
             exploration_final_eps=0.05,
             tensorboard_log="./tensorboard_logs/")
 
-model.learn(total_timesteps=3000000, #~3mil steps for ~25k episodes
-            log_interval=10,
-            tb_log_name="dqn_easy_01_2conv")
+model.learn(total_timesteps=1000000, #~3mil steps for ~25k episodes
+            log_interval=1000,
+            tb_log_name="dqn_env3_3conv")
 
-model.save("dqn_easy_01_2conv")
+model.save("dqn_env3_3conv")
 
 ######################################
 ## Test the DQN agent
 ######################################
 
-# del model
+del model
 
-# env = test_env1
+model_env1 = DQN.load("dqn_env1_3conv", env=env1)
+model_env2 = DQN.load("dqn_env2_3conv", env=env2)
+model_env3 = DQN.load("dqn_env3_3conv", env=env3)
 
-# model = DQN.load("dqn_easy_01_2conv", env=env)
+results_by_layout_env1, summary_by_layout_env1 = evaluate_dqn_by_layout(model_env1, test_env1, n_eval_episodes=600, print_results=True)
+results_by_layout_env2, summary_by_layout_env2 = evaluate_dqn_by_layout(model_env2, test_env2, n_eval_episodes=1000, print_results=True)
+results_by_layout_env3, summary_by_layout_env3 = evaluate_dqn_by_layout(model_env3, test_env3, n_eval_episodes=00, print_results=True)
 
-# # store one record per episode, grouped by layout name
-# results_by_layout = defaultdict(list)
+######################################
+## Plot results
+######################################
 
-# n_eval_episodes = 600
+df_summary_env1 = plot_layout_summary(summary_by_layout_env1, test_maps=test_maps)
+df_summary_env2 = plot_layout_summary(summary_by_layout_env2, test_maps=test_maps)
+df_summary_env3 = plot_layout_summary(summary_by_layout_env3, test_maps=test_maps)
 
-# for episode in range(n_eval_episodes):
-#     obs, info = env.reset()
-#     done = False
-#     episode_reward = 0.0
+print(df_summary_env1)
+df_summary_env1.to_csv("layout_summary_env1.csv", index=False)
 
-#     while not done:
-#         action, _states = model.predict(obs, deterministic=True)
-#         obs, reward, terminated, truncated, info = env.step(action)
-#         episode_reward += reward
-#         done = terminated or truncated
+print(df_summary_env2)
+df_summary_env2.to_csv("layout_summary_env2.csv", index=False)
 
-#     layout_name = info["layout_name"]
-
-#     results_by_layout[layout_name].append({
-#         "episode_reward": episode_reward,
-#         "is_success": info.get("is_success", False),
-#         "final_score": info.get("final_score", 0.0),
-#         "maxsteps_used": info.get("maxsteps_used", False),
-#         "initial_num_food": info.get("initial_num_food", 0),
-#         "remaining_food": info.get("remaining_food", 0),
-#         "percent_food_eaten": info.get("percent_food_eaten", 0.0),
-#         "normalized_score": info.get("normalized_score", 0.0),
-#     })
-
-# env.close()
-
-# import numpy as np
-
-# def summarize_results(results_by_layout):
-#     summary_by_layout = {}
-
-#     for layout_name, episodes in results_by_layout.items():
-#         rewards = [ep["episode_reward"] for ep in episodes]
-#         wins = [ep["is_success"] for ep in episodes]
-#         final_scores = [ep["final_score"] for ep in episodes]
-#         food_eaten = [ep["percent_food_eaten"] for ep in episodes]
-#         normalized_scores = [ep["normalized_score"] for ep in episodes]
-#         maxsteps_used = [ep["maxsteps_used"] for ep in episodes]
-
-#         summary_by_layout[layout_name] = {
-#             "num_episodes": len(episodes),
-#             "mean_reward": float(np.mean(rewards)),
-#             "std_reward": float(np.std(rewards)),
-#             "min_reward": float(np.min(rewards)),
-#             "max_reward": float(np.max(rewards)),
-#             "win_rate": float(np.mean(wins)),
-#             "mean_final_score": float(np.mean(final_scores)),
-#             "mean_percent_food_eaten": float(np.mean(food_eaten)),
-#             "mean_normalized_score": float(np.mean(normalized_scores)),
-#             "maxsteps_rate": float(np.mean(maxsteps_used))
-#             }
+print(df_summary_env3)
+df_summary_env3.to_csv("layout_summary_env3.csv", index=False)
 
 
-#     for layout_name, stats in summary_by_layout.items():
-#         print(f"\nLayout: {layout_name}")
-#         for k, v in stats.items():
-#             print(f"  {k}: {v}")
-    
-#     return summary_by_layout
 
-# summary1 = summarize_results(results_by_layout)
+model_env1_2conv = DQN.load("dqn_env1_2conv", env=env1)
+results_by_layout_env1_2conv, summary_by_layout_env1_2conv = evaluate_dqn_by_layout(model_env1_2conv, test_env1, n_eval_episodes=600, print_results=True)
+df_summary_env1_2conv = plot_layout_summary(summary_by_layout_env1_2conv, test_maps=test_maps)
+print(df_summary_env1_2conv)
