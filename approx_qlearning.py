@@ -10,11 +10,11 @@ from torch.utils.tensorboard import SummaryWriter
 
 from feature_extractors import AdvancedExtractor
 from pacman_gym.envs.pacman.util import Counter
+from results import evaluate_approx_q_by_layout, plot_layout_summary
 
 import itertools
 import time
 import pickle
-from results import evaluate_approx_q_by_layout, plot_layout_summary
 
 train_maps1 = ["easy_01"]
 
@@ -527,7 +527,7 @@ train_returns, eval_returns, eval_win_rates = train_approx_q_agent(
     evaluate_every=100,
     eval_episodes=100,
     log_dir="runs/approx_qlearning_env3",
-    start_episode=0,
+    start_episode=1500,
     )
 
 agent.save("aql_env3.pkl")
@@ -561,8 +561,10 @@ plot_layout_summary(summary1, test_maps=test_maps)
 
 agent.load("aql_env2.pkl")
 results2, summary2 = evaluate_approx_q_by_layout(agent, test_env2, n_eval_episodes=1000, print_results=True)
+results2, summary2 = evaluate_approx_q_by_layout(agent, test_env2, n_eval_episodes=1000, print_results=True)
 plot_layout_summary(summary2, test_maps=test_maps)
 
 agent.load("aql_env3.pkl")
+results3, summary3 = evaluate_approx_q_by_layout(agent, test_env3, n_eval_episodes=1400, print_results=True)
 results3, summary3 = evaluate_approx_q_by_layout(agent, test_env3, n_eval_episodes=1400, print_results=True)
 plot_layout_summary(summary3, test_maps=test_maps)
