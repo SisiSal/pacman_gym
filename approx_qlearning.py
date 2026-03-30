@@ -480,7 +480,7 @@ agent = ApproxQLearningPacman(
 train_returns, eval_returns, eval_win_rates = train_approx_q_agent(
     env2,
     agent,
-    num_episodes=1000,
+    num_episodes=1500,
     evaluate_every=100,
     eval_episodes=100,
     log_dir="runs/approx_qlearning_env2",
@@ -522,7 +522,7 @@ agent = ApproxQLearningPacman(
 train_returns, eval_returns, eval_win_rates = train_approx_q_agent(
     env3,
     agent,
-    num_episodes=2000,
+    num_episodes=1500,
     evaluate_every=100,
     eval_episodes=100,
     log_dir="runs/approx_qlearning_env3",
