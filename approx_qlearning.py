@@ -523,7 +523,7 @@ agent = ApproxQLearningPacman(
 train_returns, eval_returns, eval_win_rates = train_approx_q_agent(
     env3,
     agent,
-    num_episodes=1500,
+    num_episodes=2000,
     evaluate_every=100,
     eval_episodes=100,
     log_dir="runs/approx_qlearning_env3",
@@ -560,9 +560,9 @@ results1, summary1 = evaluate_approx_q_by_layout(agent, test_env1, n_eval_episod
 plot_layout_summary(summary1, test_maps=test_maps)
 
 agent.load("aql_env2.pkl")
-results2, summary2 = evaluate_approx_q_by_layout(agent, test_env2, n_eval_episodes=600, print_results=True)
+results2, summary2 = evaluate_approx_q_by_layout(agent, test_env2, n_eval_episodes=1000, print_results=True)
 plot_layout_summary(summary2, test_maps=test_maps)
 
 agent.load("aql_env3.pkl")
-results3, summary3 = evaluate_approx_q_by_layout(agent, test_env3, n_eval_episodes=600, print_results=True)
+results3, summary3 = evaluate_approx_q_by_layout(agent, test_env3, n_eval_episodes=1400, print_results=True)
 plot_layout_summary(summary3, test_maps=test_maps)
