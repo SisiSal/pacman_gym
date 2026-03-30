@@ -14,6 +14,7 @@ from pacman_gym.envs.pacman.util import Counter
 import itertools
 import time
 import pickle
+from results import evaluate_approx_q_by_layout, plot_layout_summary
 
 train_maps1 = ["easy_01"]
 
@@ -540,3 +541,28 @@ np.savez(
     eval_returns=eval_returns,
     eval_win_rates=eval_win_rates,
     )
+
+#########################################################
+# Evaluating on unseen layouts
+#########################################################
+
+extractor = AdvancedExtractor()
+
+agent = ApproxQLearningPacman(
+    extractor=extractor,
+    alpha=0.1,
+    gamma=0.95,
+    epsilon=0.0,
+)
+
+agent.load("aql_env1.pkl")
+results1, summary1 = evaluate_approx_q_by_layout(agent, test_env1, n_eval_episodes=600, print_results=True)
+plot_layout_summary(summary1, test_maps=test_maps)
+
+agent.load("aql_env2.pkl")
+results2, summary2 = evaluate_approx_q_by_layout(agent, test_env2, n_eval_episodes=600, print_results=True)
+plot_layout_summary(summary2, test_maps=test_maps)
+
+agent.load("aql_env3.pkl")
+results3, summary3 = evaluate_approx_q_by_layout(agent, test_env3, n_eval_episodes=600, print_results=True)
+plot_layout_summary(summary3, test_maps=test_maps)

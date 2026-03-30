@@ -170,9 +170,24 @@ model = DQN('CnnPolicy',
 
 model.learn(total_timesteps=1000000, #~3mil steps for ~25k episodes
             log_interval=1000,
-            tb_log_name="dqn_env3_3conv")
+            tb_log_name="dqn_env2_2conv")
 
-model.save("dqn_env3_3conv")
+model.save("dqn_env2_2conv")
+
+######################################
+## Test the DQN agent on 3conv vs 2 conv
+######################################
+
+model_env1_3conv = DQN.load("dqn_env1_3conv", env=env1)
+results_by_layout_env1_3conv, summary_by_layout_env1_3conv = evaluate_dqn_by_layout(model_env1_3conv, env1, n_eval_episodes=100, print_results=True)
+df_summary_env1_3conv = plot_layout_summary(summary_by_layout_env1_3conv)
+print(df_summary_env1_3conv)
+
+
+model_env1_2conv = DQN.load("dqn_env1_2conv", env=env1)
+results_by_layout_env1_2conv, summary_by_layout_env1_2conv = evaluate_dqn_by_layout(model_env1_2conv, env1, n_eval_episodes=100, print_results=True)
+df_summary_env1_2conv = plot_layout_summary(summary_by_layout_env1_2conv)
+print(df_summary_env1_2conv)
 
 ######################################
 ## Test the DQN agent
@@ -186,7 +201,7 @@ model_env3 = DQN.load("dqn_env3_3conv", env=env3)
 
 results_by_layout_env1, summary_by_layout_env1 = evaluate_dqn_by_layout(model_env1, test_env1, n_eval_episodes=600, print_results=True)
 results_by_layout_env2, summary_by_layout_env2 = evaluate_dqn_by_layout(model_env2, test_env2, n_eval_episodes=1000, print_results=True)
-results_by_layout_env3, summary_by_layout_env3 = evaluate_dqn_by_layout(model_env3, test_env3, n_eval_episodes=00, print_results=True)
+results_by_layout_env3, summary_by_layout_env3 = evaluate_dqn_by_layout(model_env3, test_env3, n_eval_episodes=1400, print_results=True)
 
 ######################################
 ## Plot results
@@ -207,7 +222,7 @@ df_summary_env3.to_csv("layout_summary_env3.csv", index=False)
 
 
 
-model_env1_2conv = DQN.load("dqn_env1_2conv", env=env1)
-results_by_layout_env1_2conv, summary_by_layout_env1_2conv = evaluate_dqn_by_layout(model_env1_2conv, test_env1, n_eval_episodes=600, print_results=True)
-df_summary_env1_2conv = plot_layout_summary(summary_by_layout_env1_2conv, test_maps=test_maps)
-print(df_summary_env1_2conv)
+
+
+
+
