@@ -81,6 +81,7 @@ def evaluate_approx_q_by_layout(agent, env, n_eval_episodes=500, print_results=T
         obs, info = env.reset()
         done = False
         episode_reward = 0.0
+        print(f"Evaluating episode {episode+1}/{n_eval_episodes}...", end="\r")
 
         while not done:
             state = env.game.state
