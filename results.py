@@ -144,7 +144,8 @@ def evaluate_approx_q_by_layout(agent, env, n_eval_episodes=500, print_results=T
     return results_by_layout, summary_by_layout
 
 
-def plot_layout_summary(summary_by_layout, test_maps=None): 
+def plot_layout_summary(summary_by_layout, train_maps=None, test_maps=None): 
+    train_maps = train_maps or []
     test_maps = test_maps or []
 
     df = pd.DataFrame(summary_by_layout).T
@@ -153,7 +154,7 @@ def plot_layout_summary(summary_by_layout, test_maps=None):
 
     # NEW: assign colors
     df["color"] = df["layout_name"].apply(
-        lambda x: "orange" if x in test_maps else "blue"
+        lambda x: "blue" if x in train_maps else "orange" if x in test_maps else "red"
     )
 
     df = df.sort_values("color")  # sort by color and then layout name
@@ -167,6 +168,8 @@ def plot_layout_summary(summary_by_layout, test_maps=None):
     plt.figure(figsize=(8, 4))
     plt.bar(df["layout_name"], df["mean_reward"], color=df["color"])
     plt.title("Mean Reward by Layout")
+    plt.xlabel("Layout")
+    plt.ylabel("Mean Reward")
     plt.legend(handles=legend_elements)
     plt.xticks(rotation=45)
     plt.tight_layout()
@@ -176,24 +179,19 @@ def plot_layout_summary(summary_by_layout, test_maps=None):
     plt.figure(figsize=(8, 4))
     plt.bar(df["layout_name"], df["win_rate"], color=df["color"])
     plt.title("Win Rate by Layout")
+    plt.xlabel("Layout")
+    plt.ylabel("Win Rate")
     plt.legend(handles=legend_elements)
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.show()
 
-    # 3. Percent food eaten
+    # 3. Rate of food eaten
     plt.figure(figsize=(8, 4))
     plt.bar(df["layout_name"], df["mean_percent_food_eaten"], color=df["color"])
-    plt.title("Mean Percent Food Eaten by Layout")
-    plt.legend(handles=legend_elements)
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.show()
-
-    # 4. Normalized score
-    plt.figure(figsize=(8, 4))
-    plt.bar(df["layout_name"], df["mean_normalized_score"], color=df["color"])
-    plt.title("Mean Normalized Score by Layout")
+    plt.title("Mean Rate of Food Eaten by Layout")
+    plt.xlabel("Layout")
+    plt.ylabel("Mean Rate of Food Eaten")
     plt.legend(handles=legend_elements)
     plt.xticks(rotation=45)
     plt.tight_layout()
