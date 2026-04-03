@@ -164,7 +164,7 @@ def plot_layout_summary(summary_by_layout, train_maps=None, test_maps=None):
     Patch(facecolor='orange', label='Test layouts')
 ]
 
-# 1. Mean reward
+    # 1. Mean reward
     plt.figure(figsize=(8, 4))
     plt.bar(df["layout_name"], df["mean_reward"], color=df["color"])
     plt.title("Mean Reward by Layout")
