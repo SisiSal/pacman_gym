@@ -13,6 +13,7 @@ def evaluate_dqn_by_layout(model, env, n_eval_episodes=500, print_results=True):
         obs, info = env.reset()
         done = False
         episode_reward = 0.0
+        print(f"Evaluating episode {episode+1}/{n_eval_episodes}...", end="\r")
 
         while not done:
             action, _ = model.predict(obs, deterministic=True)
@@ -64,6 +65,8 @@ def evaluate_dqn_by_layout(model, env, n_eval_episodes=500, print_results=True):
             for k, v in stats.items():
                 print(f"  {k}: {v}")
     
+    summary_by_layout = pd.DataFrame(summary_by_layout).T
+    summary_by_layout = summary_by_layout.reset_index().rename(columns={"index": "layout_name"})
 
     return results_by_layout, summary_by_layout
 
@@ -140,61 +143,68 @@ def evaluate_approx_q_by_layout(agent, env, n_eval_episodes=500, print_results=T
             print(f"\nLayout: {layout_name}")
             for k, v in stats.items():
                 print(f"  {k}: {v}")
+    
+    summary_by_layout = pd.DataFrame(summary_by_layout).T
+    summary_by_layout = summary_by_layout.reset_index().rename(columns={"index": "layout_name"})
 
     return results_by_layout, summary_by_layout
 
 
-def plot_layout_summary(summary_by_layout, train_maps=None, test_maps=None): 
-    train_maps = train_maps or []
-    test_maps = test_maps or []
+def get_pastel_colors(df, test_maps, train_maps):
+    train_color = "#52A9AC"
+    test_color = "#C66161"
 
-    df = pd.DataFrame(summary_by_layout).T
-    df = df.reset_index().rename(columns={"index": "layout_name"})
+    return [
+        test_color if layout in test_maps else train_color
+        for layout in df["layout_name"]
+    ]
+
+
+def plot_layout_summary(df, env_name=None, 
+                        train_maps=None, test_maps=None,
+                        save_path=None, figsize=(10, 2)): 
     
+    if test_maps is None:
+        test_maps = []
+    if train_maps is None:
+        train_maps = []
 
-    # NEW: assign colors
-    df["color"] = df["layout_name"].apply(
-        lambda x: "blue" if x in train_maps else "orange" if x in test_maps else "red"
+    # assign colors
+    df["color"] = get_pastel_colors(df, test_maps, train_maps)
+
+    # optional sort
+    df = df.sort_values(["color", "layout_name"])
+
+    fig, axes = plt.subplots(1, 2, figsize=figsize)
+
+    axes[0].barh(df["layout_name"], df["mean_reward"], color=df["color"])
+    axes[0].set_title("Mean Reward")
+
+    axes[1].barh(df["layout_name"], df["mean_percent_food_eaten"], color=df["color"])
+    axes[1].set_title("Food Completion Rate")
+    axes[1].set_xlim(0, 1.05)
+    axes[1].set_yticks([])
+
+    legend_elements = [
+        Patch(facecolor="#52A9AC", label=f"Train Layouts {env_name}"),
+        Patch(facecolor="#C66161", label="Test Layouts"),
+    ]
+
+    axes[1].legend(
+        handles=legend_elements,
+        loc="center left",
+        bbox_to_anchor=(1.02, 0.5),
+        frameon=False
     )
 
-    df = df.sort_values("color")  # sort by color and then layout name
-    
-    legend_elements = [
-    Patch(facecolor='blue', label='Train layouts'),
-    Patch(facecolor='orange', label='Test layouts')
-]
+    for ax in axes:
+        ax.invert_yaxis()
+        ax.spines[['top', 'right']].set_visible(False)
+        ax.grid(axis="x", linestyle="--", linewidth=0.8, alpha=0.4)
 
-    # 1. Mean reward
-    plt.figure(figsize=(8, 4))
-    plt.bar(df["layout_name"], df["mean_reward"], color=df["color"])
-    plt.title("Mean Reward by Layout")
-    plt.xlabel("Layout")
-    plt.ylabel("Mean Reward")
-    plt.legend(handles=legend_elements)
-    plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.show()
 
-    # 2. Win rate
-    plt.figure(figsize=(8, 4))
-    plt.bar(df["layout_name"], df["win_rate"], color=df["color"])
-    plt.title("Win Rate by Layout")
-    plt.xlabel("Layout")
-    plt.ylabel("Win Rate")
-    plt.legend(handles=legend_elements)
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.show()
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
 
-    # 3. Rate of food eaten
-    plt.figure(figsize=(8, 4))
-    plt.bar(df["layout_name"], df["mean_percent_food_eaten"], color=df["color"])
-    plt.title("Mean Rate of Food Eaten by Layout")
-    plt.xlabel("Layout")
-    plt.ylabel("Mean Rate of Food Eaten")
-    plt.legend(handles=legend_elements)
-    plt.xticks(rotation=45)
-    plt.tight_layout()
     plt.show()
-
-    return df

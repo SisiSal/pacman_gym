@@ -2,6 +2,7 @@
 import random
 import gymnasium as gym
 import numpy as np
+import pandas as pd
 
 from stable_baselines3 import DQN
 from feature_extractors import policy_kwargs
@@ -147,7 +148,9 @@ test_env3 = make_env(train_maps3, train_maps3+test_maps, split="test")
 ######################################
 ## Train the DQN agent
 ######################################
-del model
+
+#del model
+
 import gc
 gc.collect()
 
@@ -195,30 +198,36 @@ print(df_summary_env1_2conv)
 
 del model
 
-model_env1 = DQN.load("dqn_env1_3conv", env=env1)
-model_env2 = DQN.load("dqn_env2_3conv", env=env2)
-model_env3 = DQN.load("dqn_env3_3conv", env=env3)
+model_env1 = DQN.load("dqn_env1_2conv", env=env1)
+model_env2 = DQN.load("dqn_env2_2conv", env=env2)
+model_env3 = DQN.load("dqn_env3_2conv", env=env3)
 
 results_by_layout_env1, summary_by_layout_env1 = evaluate_dqn_by_layout(model_env1, test_env1, n_eval_episodes=600, print_results=True)
+print(summary_by_layout_env1)
+
 results_by_layout_env2, summary_by_layout_env2 = evaluate_dqn_by_layout(model_env2, test_env2, n_eval_episodes=1000, print_results=True)
+print(summary_by_layout_env2)
+
 results_by_layout_env3, summary_by_layout_env3 = evaluate_dqn_by_layout(model_env3, test_env3, n_eval_episodes=1400, print_results=True)
+print(summary_by_layout_env3)
+
+with pd.ExcelWriter("dqn_summaries.xlsx", engine="openpyxl") as writer:
+    summary_by_layout_env1.to_excel(writer, sheet_name="Env1", index=False)
+    summary_by_layout_env2.to_excel(writer, sheet_name="Env2", index=False)
+    summary_by_layout_env3.to_excel(writer, sheet_name="Env3", index=False)
 
 ######################################
 ## Plot results
 ######################################
 
-df_summary_env1 = plot_layout_summary(summary_by_layout_env1, test_maps=test_maps)
-df_summary_env2 = plot_layout_summary(summary_by_layout_env2, test_maps=test_maps)
-df_summary_env3 = plot_layout_summary(summary_by_layout_env3, test_maps=test_maps)
+summary_by_layout_env1 = pd.read_excel("dqn_summaries.xlsx", sheet_name="Env1")
+plot_layout_summary(summary_by_layout_env1, env_name="Env1", test_maps=test_maps, train_maps=train_maps3, save_path="env1_dqn_plots.png", figsize=(10, 2))
 
-print(df_summary_env1)
-df_summary_env1.to_csv("layout_summary_env1.csv", index=False)
+summary_by_layout_env2 = pd.read_excel("dqn_summaries.xlsx", sheet_name="Env2")
+plot_layout_summary(summary_by_layout_env2, env_name="Env2", test_maps=test_maps, train_maps=train_maps3, save_path="env2_dqn_plots.png", figsize=(10, 3.3))
 
-print(df_summary_env2)
-df_summary_env2.to_csv("layout_summary_env2.csv", index=False)
-
-print(df_summary_env3)
-df_summary_env3.to_csv("layout_summary_env3.csv", index=False)
+summary_by_layout_env3 = pd.read_excel("dqn_summaries.xlsx", sheet_name="Env3")
+plot_layout_summary(summary_by_layout_env3, env_name="Env3", test_maps=test_maps, train_maps=train_maps3, save_path="env3_dqn_plots.png", figsize=(10, 4.6)  )
 
 
 
