@@ -147,13 +147,13 @@ test_env3 = make_env(train_maps3, train_maps3+test_maps, split="test")
 ######################################
 ## Train the DQN agent
 ######################################
-
+del model
 import gc
 gc.collect()
 
 #tensorboard --logdir .\tensorboard_logs
 model = DQN('CnnPolicy', 
-            env2, 
+            env3, 
             policy_kwargs=policy_kwargs,
             verbose=1,
             learning_rate=0.00025,
@@ -168,11 +168,11 @@ model = DQN('CnnPolicy',
             exploration_final_eps=0.05,
             tensorboard_log="./tensorboard_logs/")
 
-model.learn(total_timesteps=1000000, #~3mil steps for ~25k episodes
+model.learn(total_timesteps=3000000, #~3mil steps for ~25k episodes
             log_interval=1000,
-            tb_log_name="dqn_env2_2conv")
+            tb_log_name="dqn_env3_2conv")
 
-model.save("dqn_env2_2conv")
+model.save("dqn_env3_2conv")
 
 ######################################
 ## Test the DQN agent on 3conv vs 2 conv
