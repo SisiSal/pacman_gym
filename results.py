@@ -173,7 +173,7 @@ def plot_layout_summary(df, env_name=None,
     df["color"] = get_pastel_colors(df, test_maps, train_maps)
 
     # optional sort
-    df = df.sort_values(["color", "layout_name"])
+    df = df.sort_values(["color"])
 
     fig, axes = plt.subplots(1, 2, figsize=figsize)
 
